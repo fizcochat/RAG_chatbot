@@ -57,6 +57,3 @@ If you'd like to contribute, feel free to open issues or submit pull requests.
 
 ## License
 This project is licensed under [MIT License](LICENSE).
-```
-
-You can now copy and paste this directly into your `README.md` file. Let me know if you need any modifications! 🚀
