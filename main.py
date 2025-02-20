@@ -118,9 +118,10 @@ with response_container:
     if st.session_state['responses']:
         for i in range(len(st.session_state['responses'])):
             message(st.session_state['responses'][i], 
-                   avatar_style="https://imgur.com/a/AffljGd",
+                   avatar_style="no-avatar",
                    key=str(i))
             if i < len(st.session_state['requests']):
                 message(st.session_state["requests"][i], 
-                       is_user=True, 
+                       is_user=True,
+                       avatar_style="no-avatar",
                        key=str(i) + '_user')
