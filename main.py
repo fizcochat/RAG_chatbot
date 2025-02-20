@@ -16,8 +16,28 @@ from langchain.prompts import (
 # Load environment variables
 load_dotenv()
 
-st.subheader("Fisco-Chat")
+# Add custom CSS
+st.markdown("""
+<style>
+    .stTextInput > label {
+        color: black;
+    }
+    .stSpinner > div {
+        color: black;
+    }
+    .stSubheader {
+        color: black;
+    }
+    div.stMarkdown > div > p {
+        color: black;
+    }
+    .css-1n76uvr {
+        color: black;
+    }
+</style>
+""", unsafe_allow_html=True)
 
+st.subheader("Fiscozen")
 # Get API keys from environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
@@ -29,15 +49,8 @@ if not OPENAI_API_KEY or not PINECONE_API_KEY:
 # Initialize services with environment variables
 vectorstore, client = initialize_services(OPENAI_API_KEY, PINECONE_API_KEY)
 
-# Dropdown for selecting the chat LLM model
-model_name = st.selectbox(
-    "Choose the chat model for the LLM:",
-    ["gpt-3.5-turbo", "gpt-4", "gpt-4o", "gpt-4o-mini"],
-    index=0
-)
-
-# Use the selected model from the dropdown
-llm = ChatOpenAI(model_name=model_name, openai_api_key=OPENAI_API_KEY)
+# Remove the dropdown and set a fixed model
+llm = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
 
 if 'responses' not in st.session_state:
      st.session_state['responses'] = ["How can I assist you?"]
@@ -47,6 +60,7 @@ if 'requests' not in st.session_state:
 
 if 'buffer_memory' not in st.session_state:
     st.session_state.buffer_memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+
 
 system_msg_template = SystemMessagePromptTemplate.from_template(template="""
 You are **Fisco-Chat**, the AI assistant for **Fiscozen**, a digital platform that simplifies VAT management for freelancers and sole proprietors in Italy. Your primary goal is to provide users with accurate and efficient tax-related assistance by retrieving information from the provided documentation before generating a response. Additionally, you serve as a bridge between:
@@ -75,7 +89,7 @@ You are **Fisco-Chat**, the AI assistant for **Fiscozen**, a digital platform th
 
 **Limitations & Boundaries:**
 - Do not make assumptions beyond the provided documentation.
-- Do not offer legal, financial, or tax advice beyond the scope of Fiscozen’s services.
+- Do not offer legal, financial, or tax advice beyond the scope of Fiscozen's services.
 - If uncertain, guide the user toward professional assistance rather than providing speculative answers.
 """)
 
@@ -89,13 +103,12 @@ response_container = st.container()
 textcontainer = st.container()
 
 with textcontainer:
-    query = st.text_input("Query: ", key="input")
+    query = st.text_input("", placeholder="Type here", key="input")
     if query:
-        with st.spinner("typing..."):
+        with st.spinner("I'm thinking..."):
             conversation_string = get_conversation_string()
             refined_query = query_refiner(client, conversation_string, query)
-            st.subheader("Refined Query:")
-            st.write(refined_query)
+            print("\nRefined Query:", refined_query)
             context = find_match(vectorstore, refined_query)
             response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
         st.session_state.requests.append(query)
@@ -104,6 +117,10 @@ with textcontainer:
 with response_container:
     if st.session_state['responses']:
         for i in range(len(st.session_state['responses'])):
-            st.write(st.session_state['responses'][i])  # Replace message with st.write
+            message(st.session_state['responses'][i], 
+                   avatar_style="https://imgur.com/a/AffljGd",
+                   key=str(i))
             if i < len(st.session_state['requests']):
-                st.write(st.session_state["requests"][i])
+                message(st.session_state["requests"][i], 
+                       is_user=True, 
+                       key=str(i) + '_user')
