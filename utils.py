@@ -25,16 +25,8 @@ def initialize_services(openai_api_key, pinecone_api_key):
     return vectorstore, client
 
 def find_match(vectorstore, query):
-    # Reduce k from 10 to 3 most relevant results
     result = vectorstore.similarity_search(query, k=5)
-    
-    # Limit the length of each result
-    shortened_results = []
-    for doc in result:
-        # Take first 500 characters of each document
-        shortened_results.append(str(doc)[:500])
-    
-    return "\n".join(shortened_results)
+    return str(result)
 
 def query_refiner(client, conversation, query):
     # Take only the last 2 exchanges from the conversation
