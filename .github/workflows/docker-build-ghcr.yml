@@ -26,14 +26,17 @@ jobs:
           username: ${{ secrets.GHCR_USERNAME }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+      # ✅ Build Docker Image (Lowercase Repository Owner)
       - name: Build Docker Image
-        run: docker build -t ghcr.io/${{ github.repository_owner  }}.toLowerCase()/fiscochat:latest .
-        
+        run: docker build -t ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/fiscochat:latest .
+
+      # ✅ Tag Docker Image (Lowercase Repository Owner)
       - name: Tag Docker Image
         run: |
-          docker tag ghcr.io/${{ github.repository_owner  }}.toLowerCase()/fiscochat:latest ghcr.io/${{ github.repository_owner  }}.toLowerCase()/fiscochat:${{ github.sha }}
-        
+          docker tag ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/fiscochat:latest ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/fiscochat:${{ github.sha }}
+
+      # ✅ Push Docker Image (Lowercase Repository Owner)
       - name: Push Docker Image to GHCR
         run: |
-          docker push ghcr.io/${{ github.repository_owner }}/fiscochat:latest
-          docker push ghcr.io/${{ github.repository_owner }}/fiscochat:${{ github.sha }}
+          docker push ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/fiscochat:latest
+          docker push ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/fiscochat:${{ github.sha }}
