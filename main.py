@@ -108,7 +108,7 @@ response_container = st.container()
 textcontainer = st.container()
 
 with textcontainer:
-    query = st.text_input("", placeholder="Type here", key="input")
+    query = st.chat_input("Type here...")
     if query:
         with st.spinner("Typing..."):
             conversation_string = get_conversation_string()
@@ -118,6 +118,7 @@ with textcontainer:
             response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
         st.session_state.requests.append(query)
         st.session_state.responses.append(response)
+        st.rerun()
 
 with response_container:
     if st.session_state['responses']:
