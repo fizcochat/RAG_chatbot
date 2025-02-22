@@ -2,13 +2,14 @@ name: Build and Push Docker Image to GHCR
 
 on:
   push:
-    branches: 
-      - main
+    branches:
+      - '**'
     tags:
       - v*
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build-and-push:
