@@ -27,16 +27,17 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Set Repository Name Lowercase
-        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
-
+        run: echo "REPO_NAME=$(echo ${GITHUB_REPOSITORY##*/} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+        
       - name: Build Docker Image
         run: docker build -t ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest .
-
+      
       - name: Tag Docker Image
         run: |
           docker tag ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ github.sha }}
-
-      - name: Push Docker Image
+      
+      - name: Push Docker Image to GHCR
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest
           docker push ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ github.sha }}
+      
