@@ -28,15 +28,18 @@ jobs:
 
       # ✅ Set Repository Name in Lowercase
       - name: Set Repository Name Lowercase
-        run: echo "REPO_NAME=$(echo ${{ github.event.repository.name }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+        run: |
+          echo "REPO_NAME=$(echo '${{ github.event.repository.name }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       # ✅ Debug - Print REPO_NAME
       - name: Debug - Print REPO_NAME
-        run: echo "Repository Name in Lowercase: ${{ env.REPO_NAME }}"
+        run: |
+          echo "Repository Name in Lowercase: ${{ env.REPO_NAME }}"
 
       # ✅ Build Docker Image
       - name: Build Docker Image
-        run: docker build -t ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest .
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest .
 
       # ✅ Tag Docker Image
       - name: Tag Docker Image
