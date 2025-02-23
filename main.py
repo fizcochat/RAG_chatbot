@@ -1,7 +1,6 @@
 import streamlit as st
 from streamlit_chat import message
 import os
-from dotenv import load_dotenv
 from utils import initialize_services, find_match, query_refiner, get_conversation_string
 from langchain_openai import ChatOpenAI
 from langchain.chains import ConversationChain
@@ -12,9 +11,6 @@ from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder
 )
-
-# Load environment variables
-load_dotenv()
 
 # Add custom CSS
 st.markdown("""
