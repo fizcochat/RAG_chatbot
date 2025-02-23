@@ -26,9 +26,9 @@ jobs:
           username: ${{ secrets.GHCR_USERNAME }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      # ✅ Set Repository Name Lowercase and Replace Underscores With Dashes
+      # ✅ Set Repository Name Lowercase and Replace Underscores with Dashes (GitHub Actions Syntax)
       - name: Set Repository Name Lowercase
-        run: echo "REPO_NAME=$(echo ${{ github.event.repository.name }} | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')" >> $GITHUB_ENV
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g' >> $GITHUB_ENV
 
       # ✅ Debug - Print REPO_NAME
       - name: Debug - Print REPO_NAME
