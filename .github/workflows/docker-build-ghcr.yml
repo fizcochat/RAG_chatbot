@@ -26,22 +26,22 @@ jobs:
           username: ${{ secrets.GHCR_USERNAME }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      # ✅ Debug - Print GitHub Repository Name
+      # Print GitHub Repository Name
       - name: Debug - Print Repository
         run: |
           echo "Repository: ${{ github.repository }}"
 
-      # ✅ Build Docker Image Using Built-In Lowercase Syntax
+      # Build Docker Image Using Organization Name
       - name: Build Docker Image
-        run: docker build -t ghcr.io/${GITHUB_REPOSITORY,,}:latest .
+        run: docker build -t ghcr.io/fizcochat/${GITHUB_REPOSITORY#*/}:latest .
 
-      # ✅ Tag Docker Image with Commit SHA
+      # Tag Docker Image with Commit SHA
       - name: Tag Docker Image
         run: |
-          docker tag ghcr.io/${GITHUB_REPOSITORY,,}:latest ghcr.io/${GITHUB_REPOSITORY,,}:${{ github.sha }}
+          docker tag ghcr.io/fizcochat/${GITHUB_REPOSITORY#*/}:latest ghcr.io/fizcochat/${GITHUB_REPOSITORY#*/}:${{ github.sha }}
 
-      # ✅ Push Docker Image to GHCR
+      # Push Docker Image to GHCR
       - name: Push Docker Image
         run: |
-          docker push ghcr.io/${GITHUB_REPOSITORY,,}:latest
-          docker push ghcr.io/${GITHUB_REPOSITORY,,}:${{ github.sha }}
+          docker push ghcr.io/fizcochat/${GITHUB_REPOSITORY#*/}:latest
+          docker push ghcr.io/fizcochat/${GITHUB_REPOSITORY#*/}:${{ github.sha }}
