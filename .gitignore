@@ -3,6 +3,7 @@ env/
 venv/
 venv-rag/
 __pycache__
+.pytest_cache/
 
 # Docker
 .docker/
