@@ -1,0 +1,26 @@
+{
+  "name": "RAG Chatbot",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {},
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  },
+  "forwardPorts": [8501],
+  "portsAttributes": {
+    "8501": {
+      "label": "Streamlit",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "postAttachCommand": {
+    "server": "streamlit run main.py --server.address 0.0.0.0 --server.enableCORS false --server.enableXsrfProtection false"
+  }
+}
