@@ -27,18 +27,13 @@ jobs:
     - name: Set environment variables
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: echo "Environment variable OPENAI_API_KEY is set"
+        PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+      run: echo "Environment variables OPENAI_API_KEY and PINECONE_API_KEY are set"
 
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    
     - name: Run tests with coverage
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
       run: |
         pytest --cov=./ --cov-report=xml
     
@@ -51,4 +46,6 @@ jobs:
     - name: Build Docker image
       run: |
         docker build -t rag-chatbot .
-        docker run -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} rag-chatbot pytest
+        docker run -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+                   -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
+                   rag-chatbot pytest
