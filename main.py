@@ -1,7 +1,6 @@
 import streamlit as st
 from streamlit_chat import message
 import os
-from dotenv import load_dotenv
 from utils import initialize_services, find_match, query_refiner, get_conversation_string
 from langchain_openai import ChatOpenAI
 from langchain.chains import ConversationChain
@@ -12,9 +11,6 @@ from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder
 )
-
-# Load environment variables
-load_dotenv()
 
 # Add custom CSS
 st.markdown("""
@@ -108,7 +104,7 @@ response_container = st.container()
 textcontainer = st.container()
 
 with textcontainer:
-    query = st.text_input("", placeholder="Type here", key="input")
+    query = st.chat_input("Type here...")
     if query:
         with st.spinner("Typing..."):
             conversation_string = get_conversation_string()
@@ -118,6 +114,7 @@ with textcontainer:
             response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
         st.session_state.requests.append(query)
         st.session_state.responses.append(response)
+        st.rerun()
 
 with response_container:
     if st.session_state['responses']:
@@ -130,3 +127,12 @@ with response_container:
                        is_user=True,
                        avatar_style="no-avatar",
                        key=str(i) + '_user')
+
+def get_response(user_input: str) -> str:
+    if not user_input:
+        return "Please enter a valid question."
+    conversation_string = get_conversation_string()
+    refined_query = query_refiner(client, conversation_string, user_input)
+    context = find_match(vectorstore, refined_query)
+    response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+    return response
