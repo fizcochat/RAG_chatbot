@@ -1,5 +1,7 @@
 import pytest
-from main import get_response  # Assuming this is your main chat function
+from main import get_response
+
+# pytest tests/test_basic.py
 
 def test_basic():
     assert True
@@ -33,5 +35,3 @@ def test_irrelevant_query():
     response = get_response(query)
     assert isinstance(response, str)
     assert any(keyword in response.lower() for keyword in ["i focus on", "tax", "financial topics"]), "Chatbot should indicate it handles tax-related topics"
-
-# Run with: pytest tests/test_basic.py
