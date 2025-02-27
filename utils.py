@@ -3,6 +3,15 @@ import openai
 from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
 import streamlit as st
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Access environment variables
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+DB_HOST = os.getenv('DB_HOST')
 
 # Load the environment variables from the .env file
 def initialize_services(openai_api_key, pinecone_api_key):
