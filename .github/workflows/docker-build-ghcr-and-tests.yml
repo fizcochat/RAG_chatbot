@@ -76,14 +76,18 @@ jobs:
           docker push ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:${{ github.sha }}
 
   deploy:
-    needs: build-and-push  # 🚨 Only runs if build succeeds
+    needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+
       - name: Deploy Container
         run: |
           echo "Deploying container..."
-          docker pull ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest
+          docker pull ghcr.io/fizcochat/fizcochat/${GITHUB_REPOSITORY,,}:latest
           docker stop rag-chatbot || true
           docker rm rag-chatbot || true
           docker run -d --name rag-chatbot -p 8501:8501 \
