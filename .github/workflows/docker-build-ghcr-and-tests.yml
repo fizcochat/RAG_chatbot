@@ -43,7 +43,7 @@ jobs:
         run: pytest --cov=./ --cov-report=xml
 
   build-and-push:
-    needs: test  # 🚨 Runs only if previous tests pass
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -76,12 +76,17 @@ jobs:
           docker push ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:${{ github.sha }}
 
   deploy:
-    needs: build-and-push  # 🚨 Runs only if build succeeds
+    needs: build-and-push  # 🚨 Only runs if build succeeds
     runs-on: ubuntu-latest
 
     steps:
       - name: Deploy Container
         run: |
           echo "Deploying container..."
-          # Example: Pull & Run container on a remote server
-          ssh user@your-server "docker pull ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest && docker run -d -p 8501:8501 ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest"
+          docker pull ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest
+          docker stop rag-chatbot || true
+          docker rm rag-chatbot || true
+          docker run -d --name rag-chatbot -p 8501:8501 \
+            -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
+            ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest
