@@ -93,4 +93,4 @@ jobs:
           docker run -d --name rag-chatbot -p 8501:8501 \
             -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
             -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
-            ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest
+            ghcr.io/fizcochat/fizcochat/${GITHUB_REPOSITORY,,}:latest
