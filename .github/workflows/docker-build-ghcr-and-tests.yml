@@ -94,3 +94,5 @@ jobs:
             -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
             -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
             ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest
+
+            
