@@ -11,6 +11,9 @@ from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder
 )
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 # Add custom CSS
 st.markdown("""
@@ -127,3 +130,82 @@ with response_container:
                        is_user=True,
                        avatar_style="no-avatar",
                        key=str(i) + '_user')
+
+# Initialize and train the model
+def initialize_classifier():
+    # Training data (same as in test file)
+    queries = [
+        # Fiscozen related
+        "How do I contact Fiscozen support?",
+        "What services does Fiscozen offer?",
+        "Can Fiscozen help with my accounting?",
+        "Fiscozen pricing plans",
+        "How to register with Fiscozen",
+        
+        # IVA related
+        "What is an IVA?",
+        "How long does an IVA last?",
+        "IVA payment terms",
+        "Can I get an IVA if I'm self-employed?",
+        "IVA debt minimum",
+        
+        # Tax related
+        "How to pay taxes online?",
+        "When is the tax deadline?",
+        "Tax deductions for businesses",
+        "VAT registration process",
+        "Corporate tax rates",
+        
+        # Unrelated queries
+        "What's the weather today?",
+        "Best restaurants nearby",
+        "How to make pasta",
+        "Latest football scores",
+        "Movie showtimes"
+    ]
+    
+    labels = [0,0,0,0,0, 1,1,1,1,1, 2,2,2,2,2, 3,3,3,3,3]
+    
+    # Create and train the model
+    vectorizer = TfidfVectorizer(stop_words='english')
+    X = vectorizer.fit_transform(queries)
+    model = LogisticRegression(multi_class='ovr', max_iter=1000)
+    model.fit(X, labels)
+    
+    return vectorizer, model
+
+# Global variables for model and vectorizer
+vectorizer, model = initialize_classifier()
+
+def classify_query(query):
+    """
+    Classifies a query into one of four categories:
+    0: Fiscozen related
+    1: IVA related
+    2: Tax related
+    3: Unrelated
+    """
+    # Transform the query using the same vectorizer
+    query_vector = vectorizer.transform([query])
+    
+    # Predict the category
+    prediction = model.predict(query_vector)
+    
+    return prediction[0]
+
+def get_response(query):
+    # First classify the query
+    category = classify_query(query)
+    
+    if not query.strip():
+        return "Please ask a question."
+    
+    # Generate response based on category
+    if category == 0:
+        return "This is a Fiscozen-related query. Let me help you with that..."
+    elif category == 1:
+        return "This is related to Individual Voluntary Arrangement (IVA)..."
+    elif category == 2:
+        return "This is a tax-related query. Here's how you can proceed..."
+    else:
+        return "I cannot help with this query as it's not related to Fiscozen, IVA, or tax matters."
