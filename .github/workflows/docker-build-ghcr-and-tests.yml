@@ -83,6 +83,11 @@ jobs:
       - name: Log in to GHCR
         run: |
           echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+      
+      - name: Debug Docker Pull
+        run: |
+          echo "Attempting to pull: ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest"
+          docker pull ghcr.io/fizcochat/fizcochat/${GITHUB_REPOSITORY,,}:latest || echo "❌ Docker pull failed!"
 
       - name: Deploy Container
         run: |
