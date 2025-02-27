@@ -87,7 +87,7 @@ jobs:
       - name: Debug Docker Pull
         run: |
           echo "Attempting to pull: ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest"
-          docker pull ghcr.io/fizcochat/fizcochat/${GITHUB_REPOSITORY,,}:latest || echo "❌ Docker pull failed!"
+          docker pull ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest || echo "❌ Docker pull failed!"
 
       - name: Deploy Container
         run: |
