@@ -1,0 +1,93 @@
+name: Python Tests
+
+on:
+  push:
+    branches: 
+      - '**'
+  pull_request:
+    branches: 
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install pytest pytest-cov flake8
+    
+    - name: Set environment variables
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+      run: echo "Environment variables OPENAI_API_KEY and PINECONE_API_KEY are set"
+
+    - name: Run tests with coverage
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+      run: |
+        pytest --cov=./ --cov-report=xml
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build Docker Image
+        run: docker build -t ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest .
+
+      - name: Run Tests Inside Docker Container
+        run: |
+          docker run --rm -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+                        -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
+                        ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest pytest
+
+      - name: Tag Docker Image
+        run: |
+          docker tag ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:${{ github.sha }}
+
+      - name: Push Docker Image
+        run: |
+          docker push ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest
+          docker push ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+      
+      - name: Deploy Container
+        run: |
+          echo "Deploying container..."
+          docker pull ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest
+          docker stop rag-chatbot || true
+          docker rm rag-chatbot || true
+          docker run -d --name rag-chatbot -p 8501:8501 \
+            -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
+            ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest

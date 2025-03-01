@@ -41,6 +41,29 @@ Replace `your_openai_api_key` and `your_pinecone_api_key` with your actual API k
 streamlit run main.py
 ```
 
+### 6.  Access and Run the Private Docker Image
+
+- Accept the Invitation to Access the Docker Image: Check your GitHub Notifications or email for an invitation to access the Fiscochat package. Click Accept Invitation to gain access.
+- Generate a GitHub Personal Access Token (PAT):
+  - Log in to GitHub.
+  - Click your profile picture → Settings.
+  - Go to Developer Settings → Personal Access Tokens → Fine-grained Tokens.
+  - Click Generate New Token and configure the following: Repository Access: Select the repository containing the Fiscochat image. Expiration: Choose an expiration date or select No expiration. Permissions: read:packages (Required to pull Docker images)
+  - Click Generate Token and copy the token.
+- Open your terminal and type:
+```bash
+echo YOUR_GITHUB_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+```
+- Pull the docker image:
+```bash
+  docker pull ghcr.io/fizcochat/fizcochat/rag_chatbot:c2b27447fa48add23da1b773804833be4615e251
+  ```
+- Run the docker container:
+```bash  
+  docker run -d -p 8501:8501 -e OPENAI_API_KEY=your_openai_api_key -e PINECONE_API_KEY=your_pinecone_api_key ghcr.io/fizcochat/fizcochat/rag_chatbot:latest
+```
+- Now you can access the chatbot at http://localhost:8501/
+
 ## Features
 - Uses OpenAI's LLMs (GPT-3.5, GPT-4, GPT-4o, etc.)
 - Retrieves information from vector databases for accurate responses
