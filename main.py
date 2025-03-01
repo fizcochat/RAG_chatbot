@@ -127,3 +127,12 @@ with response_container:
                        is_user=True,
                        avatar_style="no-avatar",
                        key=str(i) + '_user')
+
+def get_response(user_input: str) -> str:
+    if not user_input:
+        return "Please enter a valid question."
+    conversation_string = get_conversation_string()
+    refined_query = query_refiner(client, conversation_string, user_input)
+    context = find_match(vectorstore, refined_query)
+    response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+    return response
