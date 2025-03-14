@@ -1,7 +1,16 @@
 import streamlit as st
 from streamlit_chat import message
 import os
-from utils import initialize_services, find_match, query_refiner, get_conversation_string
+from dotenv import load_dotenv
+from utils import (
+    initialize_services, 
+    find_match, 
+    query_refiner, 
+    get_conversation_string,
+    detect_api_request,
+    enrich_response_with_api_data,
+    mock_api
+)
 from langchain_openai import ChatOpenAI
 from langchain.chains import ConversationChain
 from langchain.chains.conversation.memory import ConversationBufferWindowMemory
@@ -11,6 +20,10 @@ from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder
 )
+
+# Try to load environment variables from .env file (for local development)
+# This won't override existing environment variables (like those from GitHub secrets)
+load_dotenv()
 
 # Add custom CSS
 st.markdown("""
@@ -34,12 +47,41 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.subheader("Fiscozen")
-# Get API keys from environment variables
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+# Get API keys from environment variables (works for both GitHub secrets and .env)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 
-if not OPENAI_API_KEY or not PINECONE_API_KEY:
-    st.error("Please set up your API keys in the .env file")
+# Check if we have the required API keys
+missing_keys = []
+if not OPENAI_API_KEY:
+    missing_keys.append("OPENAI_API_KEY")
+if not PINECONE_API_KEY:
+    missing_keys.append("PINECONE_API_KEY")
+
+if missing_keys:
+    st.error(f"Missing API key(s): {', '.join(missing_keys)}. Please check your environment variables or GitHub secrets configuration.")
+    
+    # Add debugging info
+    st.info("Debugging information:")
+    st.markdown("""
+    ### If running locally:
+    Make sure your .env file is in the correct location and properly formatted:
+    ```
+    OPENAI_API_KEY=sk-your-key-here
+    PINECONE_API_KEY=your-pinecone-key-here
+    ```
+    
+    ### If deploying with GitHub:
+    Ensure GitHub secrets are correctly set up with the following names:
+    - OPENAI_API_KEY
+    - PINECONE_API_KEY
+    """)
+    
+    # Print available environment variables for debugging (without showing values)
+    st.subheader("Available environment variables:")
+    env_vars = [key for key in os.environ.keys()]
+    st.write(f"Found {len(env_vars)} environment variables: {', '.join(sorted(env_vars))}")
+    
     st.stop()
 
 # Initialize services with environment variables
@@ -107,11 +149,50 @@ with textcontainer:
     query = st.chat_input("Type here...")
     if query:
         with st.spinner("Typing..."):
+            # Get conversation history
             conversation_string = get_conversation_string()
+            
+            # Refine query
             refined_query = query_refiner(client, conversation_string, query)
             print("\nRefined Query:", refined_query)
+            
+            # STEP 1: Detect if the query should trigger an API call
+            # This analyzes the user's question to determine if we need specific data from an API
+            should_call_api, endpoint, parameters = detect_api_request(query)
+            
+            # Initialize API data as None
+            api_data = None
+            
+            # STEP 2: Get RAG context from vector store
+            # This is the standard RAG retrieval step
             context = find_match(vectorstore, refined_query)
+            
+            # STEP 3: If API call is needed, fetch the data and enrich the context
+            # This is where we integrate external data into the RAG framework
+            if should_call_api:
+                print(f"\nCalling API endpoint: {endpoint} with parameters: {parameters}")
+                
+                # Show a loading indicator while fetching data
+                if endpoint == "invoices":
+                    api_message = st.info("Fetching invoice data from our database...")
+                else:
+                    api_message = st.info(f"Fetching {endpoint.replace('_', ' ')} information...")
+                
+                # Make the API call (either to mock internal data or external invoice API)
+                api_data = mock_api.call(endpoint, parameters)
+                print(f"\nAPI response: {api_data}")
+                
+                # Remove the loading indicator once data is fetched
+                api_message.empty()
+                
+                # Enrich the context with API data before generating the response
+                # This integrates the API data with the RAG context
+                context = enrich_response_with_api_data(query, context, api_data)
+            
+            # STEP 4: Generate response with the context (potentially enriched with API data)
+            # The LLM now has access to both RAG context and any relevant API data
             response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
+        
         st.session_state.requests.append(query)
         st.session_state.responses.append(response)
         st.rerun()
@@ -131,8 +212,31 @@ with response_container:
 def get_response(user_input: str) -> str:
     if not user_input:
         return "Please enter a valid question."
+    
+    # Get conversation history
     conversation_string = get_conversation_string()
+    
+    # Refine query
     refined_query = query_refiner(client, conversation_string, user_input)
+    
+    # STEP 1: Detect if the query should trigger an API call
+    should_call_api, endpoint, parameters = detect_api_request(user_input)
+    
+    # Initialize API data as None
+    api_data = None
+    
+    # STEP 2: Get RAG context from vector store
     context = find_match(vectorstore, refined_query)
+    
+    # STEP 3: If API call is needed, fetch the data and enrich the context
+    if should_call_api:
+        print(f"Calling API endpoint: {endpoint} with parameters: {parameters}")
+        # Make the API call
+        api_data = mock_api.call(endpoint, parameters)
+        # Enrich the context with API data
+        context = enrich_response_with_api_data(user_input, context, api_data)
+    
+    # STEP 4: Generate response with the context (potentially enriched with API data)
     response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+    
     return response
