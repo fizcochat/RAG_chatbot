@@ -175,7 +175,6 @@ with textcontainer:
                 print(f"Original query: {original_query}")
                 print(f"Preprocessed query: {preprocessed_query}")
                 print(f"Relevance result: {result}")
-                print(f"Tax-related probability: {result['tax_related_probability']:.4f}")
             
             if not result['is_relevant']:
                 # Increment off-topic count
@@ -201,9 +200,8 @@ with textcontainer:
                 context = find_match(vectorstore, refined_query)
                 response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
                 
-            # Add some topic-specific context if we have high confidence in a specific topic
-            # We now check if it's relevant and if the specific topic (not just "Other") has high confidence
-            if result['is_relevant'] and result['confidence'] > 0.6:
+            # Add some topic-specific context if we have high confidence
+            if result['is_relevant'] and result['confidence'] > 0.8:
                 topic = result['topic']
                 if topic == "IVA" and "IVA" not in response.upper():
                     response = f"Regarding IVA (Italian VAT): {response}"
