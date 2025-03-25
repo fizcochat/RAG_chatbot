@@ -12,7 +12,8 @@ from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder
 )
-# Import the relevance checker
+# Import the conversation-aware relevance checking
+from simple_integration import check_message_relevance, reset_conversation
 from relevance import RelevanceChecker
 
 # Text preprocessing function
@@ -74,6 +75,10 @@ st.markdown("""
     .css-1n76uvr {
         color: black;
     }
+    .warning-text {
+        color: #ff4b4b;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -89,9 +94,6 @@ if not OPENAI_API_KEY or not PINECONE_API_KEY:
 # Initialize services with environment variables
 vectorstore, client = initialize_services(OPENAI_API_KEY, PINECONE_API_KEY)
 
-# Initialize the relevance checker
-relevance_checker = RelevanceChecker(model_path="models/enhanced_bert")
-
 # Remove the dropdown and set a fixed model
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
 
@@ -104,13 +106,30 @@ if 'requests' not in st.session_state:
 if 'buffer_memory' not in st.session_state:
     st.session_state.buffer_memory = ConversationBufferWindowMemory(k=3, return_messages=True)
 
-# Add off-topic tracking to session state
+# Add user_id for conversation tracking
+if 'user_id' not in st.session_state:
+    import uuid
+    st.session_state['user_id'] = str(uuid.uuid4())
+
+# Add off-topic counter for explicit tracking in session state
 if 'off_topic_count' not in st.session_state:
     st.session_state['off_topic_count'] = 0
 
 # Add debug mode to session state (can be toggled in the UI if needed)
 if 'debug_mode' not in st.session_state:
-    st.session_state['debug_mode'] = False
+    st.session_state['debug_mode'] = True  # Enable debug by default for testing
+
+# Add sidebar toggle for debug mode
+with st.sidebar:
+    st.session_state['debug_mode'] = st.checkbox("Enable Debug Mode", value=st.session_state['debug_mode'])
+    
+    if st.session_state['debug_mode']:
+        st.write(f"Current off-topic count: {st.session_state['off_topic_count']}")
+        st.write(f"User ID: {st.session_state['user_id']}")
+        if st.button("Reset Conversation Tracking"):
+            reset_conversation(st.session_state['user_id'])
+            st.session_state['off_topic_count'] = 0
+            st.write("Conversation tracking reset!")
 
 system_msg_template = SystemMessagePromptTemplate.from_template(template="""
                                                                 
@@ -157,6 +176,9 @@ conversation = ConversationChain(memory=st.session_state.buffer_memory, prompt=p
 response_container = st.container()
 textcontainer = st.container()
 
+# Debug container for showing relevance results
+debug_container = st.container()
+
 with textcontainer:
     query = st.chat_input("Type here...")
     if query:
@@ -164,49 +186,87 @@ with textcontainer:
             # Store the original query for display
             original_query = query
             
-            # Preprocess the query for relevance checking
-            preprocessed_query = preprocess_text(query)
+            # Check relevance with conversation context - more aggressive thresholds
+            relevance_result = check_message_relevance(
+                message=query,
+                user_id=st.session_state['user_id'],
+                model_path="models/enhanced_bert",
+                tax_threshold=0.5,  # Lower threshold to be more sensitive
+                redirect_threshold=2  # Redirect after fewer off-topic messages
+            )
             
-            # Check if the query is relevant to tax matters
-            result = relevance_checker.check_relevance(preprocessed_query)
+            # Also update our explicit counter for redundancy
+            if not relevance_result['is_relevant']:
+                st.session_state['off_topic_count'] += 1
+            else:
+                st.session_state['off_topic_count'] = max(0, st.session_state['off_topic_count'] - 1)
             
             # Debug information if needed
             if st.session_state['debug_mode']:
-                print(f"Original query: {original_query}")
-                print(f"Preprocessed query: {preprocessed_query}")
-                print(f"Relevance result: {result}")
+                with debug_container:
+                    st.write("## Debug Information")
+                    st.write(f"**Original query:** {original_query}")
+                    st.write(f"**Is relevant:** {relevance_result['is_relevant']}")
+                    st.write(f"**Topic:** {relevance_result['topic']}")
+                    st.write(f"**Tax probability:** {relevance_result['tax_related_probability']:.4f}")
+                    st.write(f"**Confidence:** {relevance_result['confidence']:.4f}")
+                    st.write(f"**Consecutive off-topic:** {relevance_result['consecutive_off_topic']}")
+                    st.write(f"**Conversation drifting:** {relevance_result['is_drifting']}")
+                    st.write(f"**Needs redirect:** {relevance_result['needs_redirect']}")
+                    st.write(f"**Session off-topic count:** {st.session_state['off_topic_count']}")
+                    
+                    # Show probabilities
+                    st.write("### Class Probabilities")
+                    st.write(f"- IVA: {relevance_result['probabilities']['IVA']:.4f}")
+                    st.write(f"- Fiscozen: {relevance_result['probabilities']['Fiscozen']:.4f}")
+                    st.write(f"- Other: {relevance_result['probabilities']['Other']:.4f}")
             
-            if not result['is_relevant']:
-                # Increment off-topic count
-                st.session_state['off_topic_count'] += 1
-                
-                # Check if we need to redirect
-                if st.session_state['off_topic_count'] >= 3:
-                    response = ("I notice we've gone off-topic. I'm specialized in tax and Fiscozen-related matters. "
-                                "Let me redirect you to a Customer Success Consultant who can help with general inquiries.")
-                    st.session_state['off_topic_count'] = 0  # Reset after redirecting
-                else:
-                    # Just warn the user
-                    response = ("I'm specialized in Italian tax matters and Fiscozen services. "
-                                "Could you please ask something related to taxes, IVA, or Fiscozen?")
-            else:
-                # Reset off-topic count for relevant queries
+            # Force redirect if either tracking method suggests it
+            needs_redirect = relevance_result['needs_redirect'] or st.session_state['off_topic_count'] >= 2
+            
+            if needs_redirect:
+                # Conversation has drifted too far off-topic
+                response = (
+                    "<span class='warning-text'>OFF-TOPIC CONVERSATION DETECTED:</span> "
+                    "I notice our conversation has moved away from tax-related topics. "
+                    "I'm specialized in Italian tax and Fiscozen-related matters only. "
+                    "Let me redirect you to a Customer Success Consultant who can help with general inquiries."
+                )
+                # Reset conversation tracking after redirection
+                reset_conversation(st.session_state['user_id'])
                 st.session_state['off_topic_count'] = 0
                 
-                # Process relevant query normally
+            elif not relevance_result['is_relevant']:
+                # Current message is off-topic but not enough to redirect yet
+                response = (
+                    "<span class='warning-text'>OFF-TOPIC DETECTED:</span> "
+                    "I'm specialized in Italian tax matters and Fiscozen services. "
+                    "Could you please ask something related to taxes, IVA, or Fiscozen?"
+                )
+                
+            else:
+                # Message is relevant - process normally
                 conversation_string = get_conversation_string()
                 refined_query = query_refiner(client, conversation_string, query)
                 print("\nRefined Query:", refined_query)
                 context = find_match(vectorstore, refined_query)
                 response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
                 
-            # Add some topic-specific context if we have high confidence
-            if result['is_relevant'] and result['confidence'] > 0.8:
-                topic = result['topic']
-                if topic == "IVA" and "IVA" not in response.upper():
-                    response = f"Regarding IVA (Italian VAT): {response}"
-                elif topic == "Fiscozen" and "Fiscozen" not in response:
-                    response = f"About Fiscozen services: {response}"
+                # Add topic-specific context if we have high confidence
+                if relevance_result['confidence'] > 0.6:
+                    topic = relevance_result['topic']
+                    if topic == "IVA" and "IVA" not in response.upper():
+                        response = f"Regarding IVA (Italian VAT): {response}"
+                    elif topic == "Fiscozen" and "Fiscozen" not in response:
+                        response = f"About Fiscozen services: {response}"
+            
+            # Add conversation drift warning if drifting but not yet redirecting
+            if relevance_result['is_drifting'] and not needs_redirect and relevance_result['is_relevant']:
+                drift_note = (
+                    "<br><br><span class='warning-text'>Note:</span> Our conversation seems to be moving away from tax topics. "
+                    "I'm specialized in Italian tax matters and Fiscozen services."
+                )
+                response += drift_note
                     
         # Use the original query for display
         st.session_state.requests.append(original_query)
@@ -218,44 +278,75 @@ with response_container:
         for i in range(len(st.session_state['responses'])):
             message(st.session_state['responses'][i], 
                    avatar_style="no-avatar",
-                   key=str(i))
+                   key=str(i),
+                   allow_html=True)  # Allow HTML for warning formatting
             if i < len(st.session_state['requests']):
                 message(st.session_state["requests"][i], 
                        is_user=True,
                        avatar_style="no-avatar",
                        key=str(i) + '_user')
 
-def get_response(user_input: str) -> str:
+def get_response(user_input: str, conversation_id: str = "api_user") -> str:
+    """
+    Process user input and generate response with conversation-aware topic tracking
+    
+    Args:
+        user_input: The user's message
+        conversation_id: Identifier for the conversation
+        
+    Returns:
+        Response text
+    """
     if not user_input:
         return "Please enter a valid question."
     
-    # Preprocess the query for relevance checking
-    preprocessed_input = preprocess_text(user_input)
+    # Check relevance with conversation context - more aggressive thresholds
+    relevance_result = check_message_relevance(
+        message=user_input,
+        user_id=conversation_id,
+        model_path="models/enhanced_bert",
+        tax_threshold=0.5,  # Lower threshold to be more sensitive
+        redirect_threshold=2  # Redirect after fewer off-topic messages
+    )
     
-    # Check if the query is relevant to tax matters
-    result = relevance_checker.check_relevance(preprocessed_input)
-    
-    if not result['is_relevant']:
-        # Increment off-topic count (this uses a global counter for API calls)
-        global_off_topic_count = getattr(get_response, 'off_topic_count', 0) + 1
-        setattr(get_response, 'off_topic_count', global_off_topic_count)
+    if relevance_result['needs_redirect']:
+        # Conversation has drifted too far off-topic
+        reset_conversation(conversation_id)  # Reset tracking
+        return (
+            "OFF-TOPIC CONVERSATION DETECTED: "
+            "I notice our conversation has moved away from tax-related topics. "
+            "I'm specialized in Italian tax and Fiscozen-related matters only. "
+            "Let me redirect you to a Customer Success Consultant who can help with general inquiries."
+        )
         
-        # Check if we need to redirect
-        if global_off_topic_count >= 3:
-            setattr(get_response, 'off_topic_count', 0)  # Reset after redirecting
-            return ("I notice we've gone off-topic. I'm specialized in tax and Fiscozen-related matters. "
-                   "Let me redirect you to a Customer Success Consultant who can help with general inquiries.")
-        else:
-            # Just warn the user
-            return ("I'm specialized in Italian tax matters and Fiscozen services. "
-                   "Could you please ask something related to taxes, IVA, or Fiscozen?")
+    elif not relevance_result['is_relevant']:
+        # Current message is off-topic but not enough to redirect yet
+        return (
+            "OFF-TOPIC DETECTED: "
+            "I'm specialized in Italian tax matters and Fiscozen services. "
+            "Could you please ask something related to taxes, IVA, or Fiscozen?"
+        )
     
-    # Reset off-topic count for relevant queries
-    setattr(get_response, 'off_topic_count', 0)
-    
-    # Process relevant query normally - use original query for content retrieval
+    # Message is relevant - process normally
     conversation_string = get_conversation_string()
     refined_query = query_refiner(client, conversation_string, user_input)
     context = find_match(vectorstore, refined_query)
     response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+    
+    # Add topic-specific context if we have high confidence
+    if relevance_result['confidence'] > 0.6:
+        topic = relevance_result['topic']
+        if topic == "IVA" and "IVA" not in response.upper():
+            response = f"Regarding IVA (Italian VAT): {response}"
+        elif topic == "Fiscozen" and "Fiscozen" not in response:
+            response = f"About Fiscozen services: {response}"
+    
+    # Add conversation drift warning if drifting but not yet redirecting
+    if relevance_result['is_drifting'] and not relevance_result['needs_redirect']:
+        drift_note = (
+            "\n\nNote: Our conversation seems to be moving away from tax topics. "
+            "I'm specialized in Italian tax matters and Fiscozen services."
+        )
+        response += drift_note
+        
     return response
