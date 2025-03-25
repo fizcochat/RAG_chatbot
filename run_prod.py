@@ -21,7 +21,7 @@ def check_environment():
     # Check model directory
     if not os.path.exists("models/enhanced_bert"):
         print(f"Warning: models/enhanced_bert directory not found.")
-        print("The relevance checker might not work properly without a trained model.")
+        print("Will initialize model during startup.")
         print("Creating models directory...")
         os.makedirs("models/enhanced_bert", exist_ok=True)
     
@@ -89,6 +89,43 @@ def install_production_dependencies():
     
     print("Dependencies installed!")
 
+def initialize_model():
+    """Initialize the BERT model for relevance checking"""
+    model_path = "models/enhanced_bert"
+    
+    # Check if model already exists
+    if os.path.exists(os.path.join(model_path, "config.json")):
+        print(f"Model already exists at {model_path}")
+        return True
+    
+    print("Initializing BERT model...")
+    try:
+        # Try using the dedicated initialization script if it exists
+        if os.path.exists("initialize_model.py"):
+            subprocess.check_call([sys.executable, "initialize_model.py"])
+            return True
+        
+        # Fallback to manual initialization
+        from transformers import BertTokenizer, BertForSequenceClassification
+        
+        # Create directory if it doesn't exist
+        os.makedirs(model_path, exist_ok=True)
+        
+        # Download and save the model
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=3)
+        
+        # Save the model and tokenizer
+        model.save_pretrained(model_path)
+        tokenizer.save_pretrained(model_path)
+        
+        print(f"Model successfully initialized and saved to {model_path}")
+        return True
+    except Exception as e:
+        print(f"Error initializing model: {e}")
+        print("You can try running the initialize_model.py script separately before starting the server.")
+        return False
+
 def start_production_server():
     """Start the production server"""
     if not os.path.exists("main.py"):
@@ -112,4 +149,8 @@ if __name__ == "__main__":
         sys.exit(1)
     
     install_production_dependencies()
+    
+    # Initialize model if necessary
+    initialize_model()
+    
     start_production_server() 

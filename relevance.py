@@ -11,9 +11,6 @@ import torch.nn.functional as F
 import numpy as np
 import re
 from typing import Dict, List, Any, Optional
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 class RelevanceChecker:
@@ -27,12 +24,28 @@ class RelevanceChecker:
             model_path: Path to the model directory. If None, will use default BERT model.
         """
         # Initialize the tokenizer and model
-        if model_path and os.path.exists(model_path):
-            print(f"Loading model from {model_path}")
-            self.tokenizer = BertTokenizer.from_pretrained(model_path)
-            self.model = BertForSequenceClassification.from_pretrained(model_path)
-        else:
-            print("Loading default BERT model")
+        try:
+            if model_path and os.path.exists(model_path):
+                print(f"Loading model from {model_path}")
+                self.tokenizer = BertTokenizer.from_pretrained(model_path)
+                self.model = BertForSequenceClassification.from_pretrained(model_path)
+            else:
+                print(f"Model path {model_path} not found or not specified.")
+                print("Falling back to default BERT model from Hugging Face")
+                self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+                self.model = BertForSequenceClassification.from_pretrained(
+                    'bert-base-uncased', num_labels=3
+                )
+                
+                # Create directory and save the model for future use
+                if model_path:
+                    os.makedirs(model_path, exist_ok=True)
+                    print(f"Created directory {model_path}")
+                    self.save_model(model_path)
+                    print(f"Saved default model to {model_path} for future use")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            print("Falling back to default BERT model from Hugging Face")
             self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
             self.model = BertForSequenceClassification.from_pretrained(
                 'bert-base-uncased', num_labels=3
