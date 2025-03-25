@@ -4,7 +4,6 @@
   "../data_documents\\Agenzia_entrate_3.pdf": "1b6bbd3a301a597967a710fb34c9e9d7",
   "../data_documents\\Agenzia_entrate_4.pdf": "0550cc35005259b1a92d7a98bcdf01fc",
   "../data_documents\\Agenzia_entrate_5.pdf": "92a99115e2af05bad397e88078209fb0",
-  "../data_documents\\fiscozen_web.pdf": "c0f804a721257ce0bcbe2c67a5215a6f",
   "../data_documents\\PAGE 1 OF 49.pdf": "8791a3b097748466a6ae232e4e326ce2",
   "../data_documents\\PAGE 10 OF 49.pdf": "b2da5834369eda908aa4fec51136aa53",
   "../data_documents\\PAGE 11 OF 49.pdf": "31b322a69e9d355fb6be33d3b5a096b1",
@@ -48,10 +47,11 @@
   "../data_documents\\PAGE 46 OF 49.pdf": "702ecbec3215c606871192d179c6887a",
   "../data_documents\\PAGE 47 OF 49.pdf": "cf07f901b8d04302188f561d904624b3",
   "../data_documents\\PAGE 48 OF 49.pdf": "196ebacb4c4ddcd705bea194e4476f67",
-  "../data_documents\\PAGE 49 OF 49.pdf": "aeff7cdc3279c81613a781779506b4c7",
   "../data_documents\\PAGE 5 OF 49.pdf": "2b583b8091cd5d71142b1b1085351083",
   "../data_documents\\PAGE 6 OF 49.pdf": "351ac11af5fc4d0a22fda0e2d7fc94c2",
   "../data_documents\\PAGE 7 OF 49.pdf": "5538d60468008900d6b9e49e17f97a29",
   "../data_documents\\PAGE 8 OF 49.pdf": "b03bd7d4c96c6c453e6b40e0090bb58f",
-  "../data_documents\\PAGE 9 OF 49.pdf": "91c424f3645cfda746617a344c6eaba2"
+  "../data_documents\\PAGE 9 OF 49.pdf": "91c424f3645cfda746617a344c6eaba2",
+  "../data_documents\\fiscozen_web.pdf": "c0f804a721257ce0bcbe2c67a5215a6f",
+  "../data_documents\\PAGE 49 OF 49.pdf": "aeff7cdc3279c81613a781779506b4c7"
 }
