@@ -1,7 +1,12 @@
 from langchain_openai import OpenAIEmbeddings
 import openai
 from pinecone import Pinecone
-from langchain_pinecone import PineconeVectorStore
+# If you get an import error with langchain_pinecone, use this alternate import:
+try:
+    from langchain_pinecone import PineconeVectorStore
+except ImportError:
+    # Fallback to community version if the main one isn't available
+    from langchain_community.vectorstores import PineconeVectorStore
 import streamlit as st
 
 # Load the environment variables from the .env file
