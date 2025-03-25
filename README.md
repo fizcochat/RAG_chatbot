@@ -1,59 +1,64 @@
-# Fisco-Chat
+# Fiscozen Tax Chatbot
 
-Fisco-Chat is an AI-powered chatbot designed to assist freelancers and sole proprietors in Italy with VAT management, leveraging LangChain and OpenAI's LLM models. 
+A production-ready chatbot for Fiscozen that specializes in Italian tax matters, IVA regulations, and Fiscozen services.
 
-## Prerequisites
+## Overview
 
-Before running the project, ensure you have the following installed:
-- Python 3.8+
-- pip (Python package manager)
-
-## Setup Instructions
-
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd <repository-folder>
-```
-
-### 2. Create a Virtual Environment (Recommended)
-```bash
-python -m venv venv
-source venv/bin/activate  # On macOS/Linux
-venv\Scripts\activate    # On Windows
-```
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Set Up Environment Variables
-Create a `.env` file in the project root and add the following keys:
-```
-OPENAI_API_KEY=your_openai_api_key
-PINECONE_API_KEY=your_pinecone_api_key
-```
-Replace `your_openai_api_key` and `your_pinecone_api_key` with your actual API keys.
-
-### 5. Run the Application
-```bash
-streamlit run main.py
-```
+This chatbot leverages RAG (Retrieval-Augmented Generation) to provide accurate responses to user queries about Italian taxes, with a specific focus on IVA (Italian VAT) and Fiscozen services. The system includes a BERT-based relevance detection mechanism that filters out off-topic queries.
 
 ## Features
-- Uses OpenAI's LLMs (GPT-3.5, GPT-4, GPT-4o, etc.)
-- Retrieves information from vector databases for accurate responses
-- Implements a structured workflow to guide users to AI assistance, CS consultants, or tax advisors
-- Maintains chat history for context-aware responses
 
-## Troubleshooting
-- **Missing API Keys**: Ensure your `.env` file is correctly set up.
-- **Dependency Errors**: Run `pip install -r requirements.txt` again to ensure all dependencies are installed.
-- **Streamlit Not Found**: Run `pip install streamlit` inside your virtual environment.
+- **Tax-Specific Knowledge**: Specialized in Italian tax regulations, IVA, and Fiscozen services
+- **Smart Relevance Detection**: BERT-based classifier detects and filters off-topic queries
+- **Memory and Context**: Maintains conversation context to provide coherent responses
+- **Off-Topic Handling**: Redirects users to customer support for non-tax related inquiries
+- **Responsive UI**: Built with Streamlit for a clean, modern interface
 
-## Contributing
-If you'd like to contribute, feel free to open issues or submit pull requests.
+## System Requirements
+
+- Python 3.8+
+- CUDA-compatible GPU (optional, for faster inference)
+
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd fiscozen-chatbot
+   ```
+
+2. **Set up environment variables:**
+   Create a `.env` file with the following variables:
+   ```
+   OPENAI_API_KEY=your_openai_api_key
+   PINECONE_API_KEY=your_pinecone_api_key
+   ```
+
+3. **Deploy in production:**
+   ```bash
+   python run_prod.py
+   ```
+
+## Project Structure
+
+- `main.py`: The main Streamlit application
+- `utils.py`: Utility functions for vector search and query refinement
+- `relevance.py`: BERT-based relevance detection for tax-related queries
+- `run_prod.py`: Production deployment script
+
+## Usage
+
+Once deployed, the chatbot will:
+
+1. Check if user queries are relevant to tax matters
+2. Provide tax-specific responses for relevant queries
+3. Redirect off-topic conversations to customer support
+4. Add relevant context based on the specific tax topic detected
 
 ## License
-This project is licensed under [MIT License](LICENSE).
+
+This project is proprietary and confidential.
+
+## Contact
+
+For support, please contact [Fiscozen Support](mailto:support@fiscozen.it).

@@ -1,10 +1,20 @@
+"""
+BERT-based relevance checker for tax-related queries.
+This module provides a RelevanceChecker class that can determine if user queries 
+are relevant to tax matters, specifically for IVA and Fiscozen topics.
+"""
+
 import os
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch.nn.functional as F
 import numpy as np
 import re
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, List, Any, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 class RelevanceChecker:
     """A class for checking if messages are relevant to tax matters with advanced detection methods"""
