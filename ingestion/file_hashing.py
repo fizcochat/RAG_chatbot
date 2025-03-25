@@ -41,3 +41,13 @@ def update_hash_record(file_path: str):
     saved_hashes = load_hashes()
     saved_hashes[file_path] = current_hash
     save_hashes(saved_hashes)
+
+
+def get_current_file_hashes():
+    current_hashes = {}
+    for root, _, files in os.walk("../data_documents"):
+        for file in files:
+            if file.endswith(".pdf"):
+                path = os.path.join(root, file)
+                current_hashes[path] = compute_file_hash(path)
+    return current_hashes

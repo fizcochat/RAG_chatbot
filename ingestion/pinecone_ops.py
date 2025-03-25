@@ -23,7 +23,7 @@ def create_embeddings(texts):
     return embeddings_list
 
 # Define a function to upsert embeddings to Pinecone with metadata
-def upsert_embeddings_to_pinecone(index, embeddings, ids, texts, batch_size=100):
+def upsert_embeddings_to_pinecone(index, embeddings, ids, texts, file_hash, batch_size=100):
     for i in range(0, len(embeddings), batch_size):
         batch_embeddings = embeddings[i:i + batch_size]
         batch_ids = ids[i:i + batch_size]
@@ -32,18 +32,23 @@ def upsert_embeddings_to_pinecone(index, embeddings, ids, texts, batch_size=100)
         for id, text in zip(batch_ids, batch_texts):
             # Extract filename from id (removing _chunk_X)
             filename = id.split('_chunk_')[0]
-            # Get the filename without extension and split on space
             name_parts = filename.split('.')[0].split(' ')
             plan_type = name_parts[0] if name_parts else ''
             plan_difficulty = name_parts[1] if len(name_parts) > 1 else ''
             metadata.append({
                 'text': preprocess_text(text),
                 'plan_type': plan_type,
-                'plan_difficulty': plan_difficulty
+                'plan_difficulty': plan_difficulty,
+                'hash': file_hash
             })
         index.upsert(vectors=[(id, embedding, meta) for id, embedding, meta in zip(batch_ids, batch_embeddings, metadata)])
 
-        # Define a function to create embedding
-
 def delete_existing_chunks(index, ids):
     index.delete(ids=ids)
+
+def get_all_vector_ids(index):
+    stats = index.describe_index_stats()
+    vector_ids = []
+    for ns in stats.get("namespaces", {}).values():
+        vector_ids.extend(ns.get("vector_count", 0))
+    return vector_ids

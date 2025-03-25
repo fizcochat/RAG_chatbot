@@ -1,5 +1,5 @@
 import re
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from config import CHUNK_SIZE, CHUNK_OVERLAP
 
@@ -18,5 +18,4 @@ def process_pdf(file_path):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
     documents = text_splitter.split_documents(data)
     # Convert Document objects into strings with progress tracking
-    texts = [str(doc) for doc in documents]
-    return texts
+    return [str(doc) for doc in documents]
