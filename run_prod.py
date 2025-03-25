@@ -12,18 +12,18 @@ load_dotenv()
 
 def check_environment():
     """Check environment and dependencies for production"""
-    required_files = ["main.py", "utils.py", "relevance.py"]
+    required_files = ["main.py", "utils.py", "bert/relevance.py", "bert/__init__.py", "bert/initialize_model.py"]
     for file in required_files:
         if not os.path.exists(file):
             print(f"Error: Required file {file} not found!")
             return False
     
     # Check model directory
-    if not os.path.exists("models/enhanced_bert"):
-        print(f"Warning: models/enhanced_bert directory not found.")
+    if not os.path.exists("bert/models/enhanced_bert"):
+        print(f"Warning: bert/models/enhanced_bert directory not found.")
         print("Will initialize model during startup.")
         print("Creating models directory...")
-        os.makedirs("models/enhanced_bert", exist_ok=True)
+        os.makedirs("bert/models/enhanced_bert", exist_ok=True)
     
     # Check environment variables
     if not os.getenv("OPENAI_API_KEY") or not os.getenv("PINECONE_API_KEY"):
