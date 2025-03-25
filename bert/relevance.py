@@ -21,16 +21,20 @@ class RelevanceChecker:
         Initialize the relevance checker
         
         Args:
-            model_path: Path to the model directory. If None, will use default BERT model.
+            model_path: Path to the model directory. If None, will use default path.
         """
+        # Use default path if none provided
+        if model_path is None:
+            model_path = "bert/models/enhanced_bert"
+        
         # Initialize the tokenizer and model
         try:
-            if model_path and os.path.exists(model_path):
+            if os.path.exists(model_path):
                 print(f"Loading model from {model_path}")
                 self.tokenizer = BertTokenizer.from_pretrained(model_path)
                 self.model = BertForSequenceClassification.from_pretrained(model_path)
             else:
-                print(f"Model path {model_path} not found or not specified.")
+                print(f"Model path {model_path} not found.")
                 print("Falling back to default BERT model from Hugging Face")
                 self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
                 self.model = BertForSequenceClassification.from_pretrained(
@@ -38,11 +42,10 @@ class RelevanceChecker:
                 )
                 
                 # Create directory and save the model for future use
-                if model_path:
-                    os.makedirs(model_path, exist_ok=True)
-                    print(f"Created directory {model_path}")
-                    self.save_model(model_path)
-                    print(f"Saved default model to {model_path} for future use")
+                os.makedirs(model_path, exist_ok=True)
+                print(f"Created directory {model_path}")
+                self.save_model(model_path)
+                print(f"Saved default model to {model_path} for future use")
         except Exception as e:
             print(f"Error loading model: {e}")
             print("Falling back to default BERT model from Hugging Face")
@@ -258,157 +261,6 @@ class RelevanceChecker:
         self.tokenizer.save_pretrained(output_dir)
         
         print(f"Model saved to {output_dir}")
-    
-    def test_with_examples(self, examples: Optional[Dict[str, List[str]]] = None, 
-                           tax_threshold: float = 0.6, verbose: bool = True) -> Dict[str, Any]:
-        """
-        Test the relevance checker with predefined or custom examples
-        
-        Args:
-            examples: Dictionary of examples by category. If None, uses default examples.
-            tax_threshold: Threshold for tax-related probability
-            verbose: Whether to print detailed results
-            
-        Returns:
-            Dictionary with test results and statistics
-        """
-        # Default test examples if none provided
-        if examples is None:
-            examples = {
-                "IVA Examples": [
-                    "What is the current IVA rate in Italy?",
-                    "How do I register for IVA?",
-                    "When do I need to pay my IVA taxes?",
-                    "I need help with my I.V.A. paperwork",
-                    "How much IVA do I need to charge my customers?"
-                ],
-                "Fiscozen Examples": [
-                    "What services does Fiscozen offer?",
-                    "How much does Fiscozen charge for tax preparation?",
-                    "Can Fiscozen help me with my tax return?",
-                    "I want to sign up for Fiscozen",
-                    "Does Fisco-Zen work with freelancers?"
-                ],
-                "Other Tax Examples": [
-                    "What's the income tax rate in Italy?",
-                    "How do I claim tax deductions?",
-                    "When is the tax filing deadline?",
-                    "Can you explain the flat tax regime?",
-                    "What tax benefits do I get as a freelancer?"
-                ],
-                "Non-Tax Examples": [
-                    "What's the weather like today in Rome?",
-                    "Can you recommend a good restaurant?",
-                    "How do I book a flight to Milan?",
-                    "What's the capital of France?",
-                    "Tell me a joke"
-                ]
-            }
-        
-        # Store results for summary
-        results = {
-            "IVA Correct": 0,
-            "Fiscozen Correct": 0,
-            "Other Tax Correct": 0,
-            "Non-Tax Correct": 0,
-            "All Results": []
-        }
-        
-        # Test all examples
-        if verbose:
-            print(f"\n{'='*80}")
-            print(f"TESTING RELEVANCE CHECKER WITH TAX THRESHOLD: {tax_threshold}")
-            print(f"{'='*80}")
-        
-        for category, category_examples in examples.items():
-            if verbose:
-                print(f"\n{'-'*40}")
-                print(f"{category}")
-                print(f"{'-'*40}")
-            
-            for example in category_examples:
-                # Preprocess the text
-                preprocessed = self.preprocess_text(example)
-                
-                # Check relevance
-                result = self.check_relevance(preprocessed, tax_threshold=tax_threshold, apply_preprocessing=False)
-                
-                # Store the full result with metadata
-                full_result = {
-                    "query": example,
-                    "category": category,
-                    "is_relevant": result["is_relevant"],
-                    "topic": result["topic"],
-                    "confidence": result["confidence"],
-                    "tax_probability": result["tax_related_probability"],
-                    "probabilities": result["probabilities"]
-                }
-                results["All Results"].append(full_result)
-                
-                # Format output for verbose mode
-                if verbose:
-                    relevance = "✓ RELEVANT" if result["is_relevant"] else "✗ NOT RELEVANT"
-                    print(f"\nQuery: '{example}'")
-                    print(f"Result: {relevance} ({result['topic']})")
-                    print(f"Confidence: {result['confidence']:.4f}")
-                    print(f"Tax-related probability: {result['tax_related_probability']:.4f}")
-                    print(f"Class probabilities: IVA: {result['probabilities']['IVA']:.4f}, "
-                          f"Fiscozen: {result['probabilities']['Fiscozen']:.4f}, "
-                          f"Other: {result['probabilities']['Other']:.4f}")
-                
-                # Update results for summary
-                if category == "IVA Examples" and result["topic"] == "IVA":
-                    results["IVA Correct"] += 1
-                elif category == "Fiscozen Examples" and result["topic"] == "Fiscozen":
-                    results["Fiscozen Correct"] += 1
-                elif category == "Other Tax Examples" and result["is_relevant"]:
-                    results["Other Tax Correct"] += 1
-                elif category == "Non-Tax Examples" and not result["is_relevant"]:
-                    results["Non-Tax Correct"] += 1
-        
-        # Calculate overall accuracy (excluding "Other Tax Examples" since they're ambiguous)
-        total_clear_examples = len(examples.get("IVA Examples", [])) + \
-                             len(examples.get("Fiscozen Examples", [])) + \
-                             len(examples.get("Non-Tax Examples", []))
-                             
-        correct_clear_examples = results["IVA Correct"] + \
-                               results["Fiscozen Correct"] + \
-                               results["Non-Tax Correct"]
-        
-        if total_clear_examples > 0:
-            accuracy = (correct_clear_examples / total_clear_examples) * 100
-            results["accuracy"] = accuracy
-        else:
-            results["accuracy"] = 0
-        
-        # Print summary in verbose mode
-        if verbose:
-            print(f"\n{'='*80}")
-            print("SUMMARY")
-            print(f"{'='*80}")
-            
-            iva_examples = examples.get("IVA Examples", [])
-            if iva_examples:
-                print(f"IVA Examples: {results['IVA Correct']}/{len(iva_examples)} correct")
-            
-            fiscozen_examples = examples.get("Fiscozen Examples", [])
-            if fiscozen_examples:
-                print(f"Fiscozen Examples: {results['Fiscozen Correct']}/{len(fiscozen_examples)} correct")
-            
-            other_tax_examples = examples.get("Other Tax Examples", [])
-            if other_tax_examples:
-                print(f"Other Tax Examples (detected as relevant): {results['Other Tax Correct']}/{len(other_tax_examples)}")
-            
-            non_tax_examples = examples.get("Non-Tax Examples", [])
-            if non_tax_examples:
-                print(f"Non-Tax Examples (detected as not relevant): {results['Non-Tax Correct']}/{len(non_tax_examples)}")
-            
-            if total_clear_examples > 0:
-                print(f"\nOverall accuracy on clear examples: {accuracy:.2f}%")
-            
-            print(f"\nUsing tax-related probability threshold: {tax_threshold}")
-        
-        return results
 
 # Example usage
 if __name__ == "__main__":
@@ -435,11 +287,3 @@ if __name__ == "__main__":
         print(f"Probabilities: IVA: {result['probabilities']['IVA']:.4f}, "
               f"Fiscozen: {result['probabilities']['Fiscozen']:.4f}, "
               f"Other: {result['probabilities']['Other']:.4f}")
-    
-    # Option 2: Run comprehensive tests with built-in examples
-    print("\nRunning comprehensive tests:")
-    checker.test_with_examples(tax_threshold=0.6)
-    
-    # Option 3: Try with different threshold
-    # print("\nTesting with different threshold:")
-    # checker.test_with_examples(tax_threshold=0.5)

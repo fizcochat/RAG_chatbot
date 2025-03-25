@@ -13,7 +13,10 @@ from langchain.prompts import (
     MessagesPlaceholder
 )
 # Import the relevance checker directly
-from relevance import RelevanceChecker
+from bert import RelevanceChecker
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Text preprocessing function
 def preprocess_text(text):
@@ -94,7 +97,7 @@ if not OPENAI_API_KEY or not PINECONE_API_KEY:
 vectorstore, client = initialize_services(OPENAI_API_KEY, PINECONE_API_KEY)
 
 # Initialize the relevance checker with model path
-relevance_checker = RelevanceChecker(model_path="models/enhanced_bert")
+relevance_checker = RelevanceChecker(model_path="bert/models/enhanced_bert")
 
 # Remove the dropdown and set a fixed model
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)

@@ -11,7 +11,7 @@ from transformers import BertTokenizer, BertForSequenceClassification
 
 def initialize_bert_model():
     """Download and set up the BERT model for relevance checking"""
-    model_path = "models/enhanced_bert"
+    model_path = "bert/models/enhanced_bert"
     
     # Create directory if it doesn't exist
     os.makedirs(model_path, exist_ok=True)

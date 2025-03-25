@@ -1,64 +1,76 @@
 # Fiscozen Tax Chatbot
 
-A production-ready chatbot for Fiscozen that specializes in Italian tax matters, IVA regulations, and Fiscozen services.
-
-## Overview
-
-This chatbot leverages RAG (Retrieval-Augmented Generation) to provide accurate responses to user queries about Italian taxes, with a specific focus on IVA (Italian VAT) and Fiscozen services. The system includes a BERT-based relevance detection mechanism that filters out off-topic queries.
+A specialized chatbot for Italian tax matters, with a focus on IVA regulations and Fiscozen services.
 
 ## Features
 
-- **Tax-Specific Knowledge**: Specialized in Italian tax regulations, IVA, and Fiscozen services
-- **Smart Relevance Detection**: BERT-based classifier detects and filters off-topic queries
-- **Memory and Context**: Maintains conversation context to provide coherent responses
-- **Off-Topic Handling**: Redirects users to customer support for non-tax related inquiries
-- **Responsive UI**: Built with Streamlit for a clean, modern interface
+- **Tax-Specific Knowledge**: Specializes in Italian tax matters, particularly IVA regulations
+- **Smart Relevance Detection**: Uses a BERT-based classifier to determine if queries are tax-related
+- **Memory and Context**: Maintains conversation history for contextual responses
+- **Off-Topic Handling**: Redirects users to customer support for non-tax queries
+- **Responsive UI**: Built with Streamlit for a clean user interface
 
 ## System Requirements
 
 - Python 3.8+
-- CUDA-compatible GPU (optional, for faster inference)
+- API Keys for OpenAI and Pinecone
+- Optional: CUDA-compatible GPU for faster inference
 
 ## Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd fiscozen-chatbot
+1. Clone the repository:
+   ```
+   git clone https://github.com/fizcochat/RAG_chatbot.git
+   cd RAG_chatbot
    ```
 
-2. **Set up environment variables:**
-   Create a `.env` file with the following variables:
+2. Set up environment variables in a `.env` file:
    ```
    OPENAI_API_KEY=your_openai_api_key
    PINECONE_API_KEY=your_pinecone_api_key
    ```
 
-3. **Deploy in production:**
-   ```bash
+3. Initialize the BERT model (required before first run):
+   ```
+   python initialize_model.py
+   ```
+   This script will download the base BERT model and configure it for relevance checking.
+
+4. Run the application:
+   ```
    python run_prod.py
    ```
 
 ## Project Structure
 
-- `main.py`: The main Streamlit application
-- `utils.py`: Utility functions for vector search and query refinement
-- `relevance.py`: BERT-based relevance detection for tax-related queries
+- `main.py`: Main Streamlit application
+- `utils.py`: Utility functions for the RAG system
+- `relevance.py`: BERT-based relevance checker for tax queries
+- `initialize_model.py`: Script to initialize the BERT model
 - `run_prod.py`: Production deployment script
+
+## Model Information
+
+The chatbot uses a BERT model for determining query relevance. This model is not included in the repository due to its size (over 400MB), but is automatically downloaded and set up when you run `initialize_model.py`.
+
+The model classifies queries into three categories:
+- IVA (Italian VAT tax)
+- Fiscozen (tax service related)
+- Other (non-tax related)
 
 ## Usage
 
-Once deployed, the chatbot will:
+The chatbot processes user queries as follows:
 
-1. Check if user queries are relevant to tax matters
-2. Provide tax-specific responses for relevant queries
-3. Redirect off-topic conversations to customer support
-4. Add relevant context based on the specific tax topic detected
+1. Checks if the query is relevant to tax matters
+2. If relevant, retrieves information from the knowledge base
+3. If not relevant after three consecutive queries, suggests contacting customer support
+4. Maintains conversation context for more natural interactions
 
 ## License
 
-This project is proprietary and confidential.
+Proprietary and confidential. Unauthorized copying or distribution prohibited.
 
-## Contact
+## Support
 
-For support, please contact [Fiscozen Support](mailto:support@fiscozen.it).
+For issues, contact support@fiscozen.it

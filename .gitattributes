@@ -1,2 +1,0 @@
-models/enhanced_bert/**/*.safetensors filter=lfs diff=lfs merge=lfs -text
-models/enhanced_bert/**/*.bin filter=lfs diff=lfs merge=lfs -text
