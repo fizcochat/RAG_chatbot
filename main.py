@@ -11,6 +11,8 @@ import re
 import uuid
 import time
 import random
+import subprocess
+from pathlib import Path
 from streamlit_chat import message
 from utils import initialize_services, find_match, query_refiner, get_conversation_string
 from langchain_openai import ChatOpenAI
@@ -23,7 +25,79 @@ from langchain.prompts import (
     MessagesPlaceholder
 )
 
-# === Initialization Code (previously in run_prod.py) ===
+# === First, check if we're running directly (not through Streamlit) ===
+is_streamlit_running = 'STREAMLIT_BROWSER_GATHER_USAGE_STATS' in os.environ
+
+if not is_streamlit_running:
+    # We're running the script directly - train and then launch Streamlit
+    print("\n=== Fiscozen Tax Chatbot ===\n")
+    
+    # Create required directories
+    os.makedirs("bert/models/enhanced_bert", exist_ok=True)
+    
+    # Load environment variables
+    if os.path.exists(".env"):
+        from dotenv import load_dotenv
+        load_dotenv()
+        print(" Loaded environment variables from .env file")
+    
+    # Check for API keys
+    if not os.getenv("OPENAI_API_KEY") or not os.getenv("PINECONE_API_KEY"):
+        print("API keys not found! Please set OPENAI_API_KEY and PINECONE_API_KEY in your .env file.")
+        sys.exit(1)
+    
+    # Train the BERT model if document folders exist
+    has_documents = os.path.exists("data_documents") or os.path.exists("argilla_data_49")
+    
+    if has_documents:
+        print("\n🔬 Training BERT classifier with document data...\n")
+        
+        # Check if training script exists
+        if os.path.exists("bert/train_classifier.py"):
+            try:
+                # Run the training script
+                subprocess.check_call([sys.executable, "bert/train_classifier.py"])
+                print("\n BERT classifier training completed!")
+            except subprocess.CalledProcessError:
+                print("\n BERT classifier training failed.")
+                choice = input("Do you want to continue without training? (y/n): ")
+                if choice.lower() != 'y':
+                    sys.exit(1)
+        else:
+            print("\n Training script not found: bert/train_classifier.py")
+    else:
+        print("\n No document folders found (data_documents/ or argilla_data_49/).")
+        print("   Using default BERT model without document training.")
+    
+    # Initialize BERT model if needed
+    model_path = "bert/models/enhanced_bert"
+    if not os.path.exists(os.path.join(model_path, "config.json")):
+        print("\n Initializing BERT model...")
+        try:
+            # Try dedicated initialization script
+            if os.path.exists("bert/initialize_model.py"):
+                subprocess.check_call([sys.executable, "bert/initialize_model.py"])
+                print("✅ BERT model initialized successfully!")
+            else:
+                # Fallback to manual initialization
+                from transformers import BertTokenizer, BertForSequenceClassification
+                tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+                model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=3)
+                model.save_pretrained(model_path)
+                tokenizer.save_pretrained(model_path)
+                print(" BERT model initialized successfully!")
+        except Exception as e:
+            print(f" Error initializing BERT model: {e}")
+            sys.exit(1)
+    
+    # Launch the Streamlit app
+    print("\n🚀 Launching Fiscozen Tax Chatbot...\n")
+    os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"  # Enable headless mode
+    subprocess.call([sys.executable, "-m", "streamlit", "run", __file__])
+    sys.exit(0)  # Exit after Streamlit is launched
+
+# === Streamlit App Starts Here ===
+# === Initialization Code ===
 def initialize_environment():
     # Load environment variables from .env if it exists
     if os.path.exists(".env"):
@@ -46,6 +120,7 @@ def initialize_environment():
             if os.path.exists("bert/initialize_model.py"):
                 import subprocess
                 subprocess.check_call([sys.executable, "bert/initialize_model.py"])
+                st.success("BERT model initialized successfully!")
             else:
                 # Fallback to manual initialization
                 from transformers import BertTokenizer, BertForSequenceClassification
@@ -53,8 +128,9 @@ def initialize_environment():
                 model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=3)
                 model.save_pretrained(model_path)
                 tokenizer.save_pretrained(model_path)
+                st.success("BERT model initialized successfully!")
         except Exception as e:
-            st.error(f"❌ Error initializing BERT model: {e}")
+            st.error(f" Error initializing BERT model: {e}")
             st.info("Please run 'python bert/initialize_model.py' before starting the chatbot.")
             st.stop()
 
