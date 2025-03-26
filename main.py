@@ -1,7 +1,17 @@
-import streamlit as st
-from streamlit_chat import message
+"""
+Fiscozen Tax Chatbot - Main Application
+"""
+
 import os
+import sys
+import streamlit as st
+from bert import RelevanceChecker
+from dotenv import load_dotenv
 import re
+import uuid
+import time
+import random
+from streamlit_chat import message
 from utils import initialize_services, find_match, query_refiner, get_conversation_string
 from langchain_openai import ChatOpenAI
 from langchain.chains import ConversationChain
@@ -12,11 +22,46 @@ from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder
 )
-# Import the relevance checker directly
-from bert import RelevanceChecker
-from dotenv import load_dotenv
 
-load_dotenv()
+# === Initialization Code (previously in run_prod.py) ===
+def initialize_environment():
+    # Load environment variables from .env if it exists
+    if os.path.exists(".env"):
+        load_dotenv()
+        
+    # Check for required API keys
+    if not os.getenv("OPENAI_API_KEY") or not os.getenv("PINECONE_API_KEY"):
+        st.error("⚠️ API keys not found! Please set OPENAI_API_KEY and PINECONE_API_KEY in your environment or .env file.")
+        st.stop()
+    
+    # Create model directories if they don't exist
+    os.makedirs("bert/models/enhanced_bert", exist_ok=True)
+    
+    # Check if BERT model is initialized
+    model_path = "bert/models/enhanced_bert"
+    if not os.path.exists(os.path.join(model_path, "config.json")):
+        st.warning("⚠️ BERT model not initialized. Attempting to initialize now...")
+        try:
+            # Try dedicated initialization script
+            if os.path.exists("bert/initialize_model.py"):
+                import subprocess
+                subprocess.check_call([sys.executable, "bert/initialize_model.py"])
+            else:
+                # Fallback to manual initialization
+                from transformers import BertTokenizer, BertForSequenceClassification
+                tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+                model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=3)
+                model.save_pretrained(model_path)
+                tokenizer.save_pretrained(model_path)
+        except Exception as e:
+            st.error(f"❌ Error initializing BERT model: {e}")
+            st.info("Please run 'python bert/initialize_model.py' before starting the chatbot.")
+            st.stop()
+
+# Run initialization before the Streamlit app
+initialize_environment()
+
+# === Original main.py code continues below ===
 
 # Text preprocessing function
 def preprocess_text(text):
