@@ -25,10 +25,13 @@ from langchain.prompts import (
     MessagesPlaceholder
 )
 
+# === Check if we're running in a test environment ===
+is_test_environment = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+
 # === First, check if we're running directly (not through Streamlit) ===
 is_streamlit_running = 'STREAMLIT_BROWSER_GATHER_USAGE_STATS' in os.environ
 
-if not is_streamlit_running:
+if not is_streamlit_running and not is_test_environment:
     # We're running the script directly - train and then launch Streamlit
     print("\n=== Fiscozen Tax Chatbot ===\n")
     
@@ -99,6 +102,11 @@ if not is_streamlit_running:
 # === Streamlit App Starts Here ===
 # === Initialization Code ===
 def initialize_environment():
+    """Initialize the environment for the chatbot"""
+    # Skip complex initialization in test environments
+    if is_test_environment:
+        return
+        
     # Load environment variables from .env if it exists
     if os.path.exists(".env"):
         load_dotenv()
@@ -134,7 +142,7 @@ def initialize_environment():
             st.info("Please run 'python bert/initialize_model.py' before starting the chatbot.")
             st.stop()
 
-# Run initialization before the Streamlit app
+# Run initialization before the Streamlit app (unless in test environment)
 initialize_environment()
 
 # === Original main.py code continues below ===
