@@ -46,8 +46,15 @@ def test_get_response_relevance():
 
 def test_get_response_off_topic():
     """Test that get_response correctly handles off-topic queries"""
-    # Temporarily modify the mock to return off-topic
+    # Reset any existing counters before test
+    if hasattr(get_response, 'off_topic_count'):
+        get_response.off_topic_count = {}
+    
+    # Use a consistent conversation ID for tracking
+    conversation_id = "test_conversation"
+    
     with patch("main.relevance_checker") as mock_checker:
+        # Configure the mock to always return off-topic
         mock_checker.check_relevance.return_value = {
             'is_relevant': False,
             'topic': 'Other',
@@ -56,10 +63,17 @@ def test_get_response_off_topic():
             'probabilities': {'IVA': 0.05, 'Fiscozen': 0.05, 'Other': 0.9}
         }
         
-        # Test with an off-topic query
-        response = get_response("What's the weather like today?")
-        assert "OFF-TOPIC DETECTED" in response
+        # First off-topic query should get a warning
+        response1 = get_response("What's the weather like today?", conversation_id)
+        assert "OFF-TOPIC DETECTED" in response1
+        assert "redirect" not in response1.lower()
         
-        # Test with a second off-topic query (should trigger redirection)
-        response = get_response("Tell me about football", "same_user")
-        assert "redirect" in response.lower()
+        # Second off-topic query with same conversation_id should trigger redirection
+        response2 = get_response("Tell me about football", conversation_id)
+        assert "OFF-TOPIC CONVERSATION DETECTED" in response2
+        assert "redirect" in response2.lower()
+        
+        # Check that the counter got reset after redirection
+        response3 = get_response("What's your favorite color?", conversation_id)
+        assert "OFF-TOPIC DETECTED" in response3
+        assert "redirect" not in response3.lower()
