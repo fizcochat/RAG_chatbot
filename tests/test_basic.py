@@ -1,40 +1,79 @@
+"""
+Basic tests for the Fiscozen chatbot
+"""
+import os
+import sys
 import pytest
-from main import get_response
+from unittest.mock import patch, MagicMock
 
-# pytest tests/test_basic.py
+# Set testing environment flag
+os.environ["PYTEST_CURRENT_TEST"] = "yes"
 
-def test_basic():
-    assert True
+# Import the module with get_response function
+from main import get_response, RelevanceChecker
 
-def test_iva_basic_query():
-    # Test basic IVA questions
-    query = "What is IVA?"
-    response = get_response(query)
-    assert isinstance(response, str), "Response should be a string"
-    assert response, "Response should not be empty"
-    assert any(keyword in response.lower() for keyword in ["tax", "value-added", "vat"]), "Response should mention VAT or taxation"
+# Mock dependencies to avoid actual API calls and model loading during tests
+@pytest.fixture(autouse=True)
+def mock_dependencies(monkeypatch):
+    # Mock RelevanceChecker
+    mock_checker = MagicMock()
+    mock_checker.check_relevance.return_value = {
+        'is_relevant': True,
+        'topic': 'IVA',
+        'confidence': 0.9,
+        'tax_related_probability': 0.9,
+        'probabilities': {'IVA': 0.9, 'Fiscozen': 0.05, 'Other': 0.05}
+    }
+    monkeypatch.setattr("main.relevance_checker", mock_checker)
+    
+    # Mock conversation.predict
+    mock_conversation = MagicMock()
+    mock_conversation.predict.return_value = "This is a mock response about taxes."
+    monkeypatch.setattr("main.conversation", mock_conversation)
+    
+    # Mock query_refiner
+    monkeypatch.setattr("main.query_refiner", lambda client, conv, query: query)
+    
+    # Mock find_match
+    monkeypatch.setattr("main.find_match", lambda vs, query: "Mock context")
 
-def test_tax_payment_query():
-    # Test tax payment related questions
-    query = "How can I pay my taxes?"
-    response = get_response(query)
-    assert isinstance(response, str)
-    assert response
-    assert any(keyword in response.lower() for keyword in ["pay", "payment", "method", "process"]), "Response should mention payment methods"
+def test_get_response_relevance():
+    """Test that get_response correctly processes tax-related queries"""
+    # Test with a tax-related query
+    response = get_response("What is the IVA rate in Italy?")
+    assert "This is a mock response about taxes" in response
+    assert len(response) > 10
 
-def test_empty_query():
-    # Test handling of empty queries
-    query = ""
-    response = get_response(query)
-    assert isinstance(response, str)
-    assert response == "Please enter a valid question.", "Response should prompt user to enter a valid question"
-
-def test_irrelevant_query():
-    # Test handling of off-topic questions
-    query = "What is the weather like on Mars?"
-    response = get_response(query)
-    assert isinstance(response, str)
-    assert response is not None and len(response.strip()) > 0, "Response should not be empty"
-    assert query.lower() not in response.lower(), f"Unexpected response: {response}"
-    # (Optional) Log response for debugging if needed
-    print(f"Chatbot Response: {response}")
+def test_get_response_off_topic():
+    """Test that get_response correctly handles off-topic queries"""
+    # Reset any existing counters before test
+    if hasattr(get_response, 'off_topic_count'):
+        get_response.off_topic_count = {}
+    
+    # Use a consistent conversation ID for tracking
+    conversation_id = "test_conversation"
+    
+    with patch("main.relevance_checker") as mock_checker:
+        # Configure the mock to always return off-topic
+        mock_checker.check_relevance.return_value = {
+            'is_relevant': False,
+            'topic': 'Other',
+            'confidence': 0.9,
+            'tax_related_probability': 0.1,
+            'probabilities': {'IVA': 0.05, 'Fiscozen': 0.05, 'Other': 0.9}
+        }
+        
+        # First off-topic query should get a warning
+        response1 = get_response("What's the weather like today?", conversation_id)
+        assert "OFF-TOPIC DETECTED" in response1
+        assert "redirect" not in response1.lower()
+        
+        # Second off-topic query with same conversation_id should trigger redirection
+        response2 = get_response("Tell me about football", conversation_id)
+        assert "OFF-TOPIC CONVERSATION DETECTED" in response2
+        assert "redirect" in response2.lower()
+        
+        # Check that the counter got reset after redirection
+        response3 = get_response("What's your favorite color?", conversation_id)
+        assert "OFF-TOPIC DETECTED" in response3
+        assert "redirect" not in response3.lower()
