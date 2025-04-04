@@ -168,12 +168,14 @@ def categorize_documents():
     training_data = []
     
     # Define data directories - updated to include the correct directories
-    data_dirs = ["data_documents", "dtaa-documents", "argilla_data_49", "argilla-data"]
+    data_dirs = ["data_documents",  "argilla_data_49"]
     categories = {
         "iva": "IVA",           # Documents about Italian VAT
         "fiscozen": "Fiscozen", # Documents about Fiscozen services
         "other": "Other"        # Documents about other topics
     }
+    
+    print(f"Looking for documents in these directories: {', '.join(data_dirs)}")
     
     # Process documents from all data directories
     for data_dir in data_dirs:
