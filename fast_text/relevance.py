@@ -47,7 +47,10 @@ class FastTextRelevanceChecker:
             'contabilità': 0.7,
             'esenzione': 0.8,
             'evasione': 0.8,
-            'rimborso': 0.6
+            'rimborso': 0.6,
+            'attività': 0.5,  # Added for business-related queries
+            'impresa': 0.6,   # Added for business-related queries
+            'azienda': 0.6    # Added for business-related queries
         }
         
         # Tax-related phrases and their weights
@@ -69,20 +72,43 @@ class FastTextRelevanceChecker:
             'contabilità aziendale': 0.8,
             'rimborso iva': 0.9,
             'credito iva': 0.9,
-            'debito iva': 0.9
+            'debito iva': 0.9,
+            'aprire attività': 0.8,    # Added for business queries
+            'gestione attività': 0.8,  # Added for business queries
+            'libero professionista': 0.8  # Added for professional queries
         }
     
     def load_model(self) -> None:
         """Load the FastText model from the specified path."""
         try:
             import fasttext
+            print(f"Checking for model at: {self.model_path}")
             if os.path.exists(self.model_path):
+                print("Model file found, loading...")
                 self.model = fasttext.load_model(self.model_path)
+                # Test the model with multiple examples
+                test_texts = [
+                    "Come funziona l'IVA?",
+                    "Come funziona l'IVA per un libero professionista?",
+                    "Quanto costa aprire un'attività?",
+                    "Che tempo farà domani?"
+                ]
+                for text in test_texts:
+                    predictions = self.model.predict(text, k=-1)
+                    print(f"Model test prediction for '{text}': {predictions}")
                 logging.info(f"Successfully loaded FastText model from {self.model_path}")
             else:
+                print(f"❌ Model file not found at {self.model_path}")
+                print("Current working directory:", os.getcwd())
+                print("Directory contents:", os.listdir(os.path.dirname(self.model_path)))
                 logging.warning(f"Model file not found at {self.model_path}")
                 self.model = None
+        except ImportError as e:
+            print(f"❌ Error importing fasttext: {e}")
+            logging.error(f"Error importing fasttext: {e}")
+            self.model = None
         except Exception as e:
+            print(f"❌ Error loading FastText model: {e}")
             logging.error(f"Error loading FastText model: {e}")
             self.model = None
     
@@ -147,9 +173,9 @@ class FastTextRelevanceChecker:
             'phrases_found': found_phrases
         }
         
-        # If we have a strong keyword match, consider it relevant
-        if keyword_score >= 0.9:
-            details['combined_score'] = keyword_score
+        # If we have a strong keyword match (IVA or key phrases), consider it relevant
+        if keyword_score >= 0.8 or 'iva' in processed_text or any(phrase in processed_text for phrase in ['partita iva', 'aliquote iva']):
+            details['combined_score'] = max(keyword_score, 0.9)  # Ensure high confidence for IVA queries
             return True, details
         
         # Try model prediction if available
@@ -163,31 +189,26 @@ class FastTextRelevanceChecker:
             label_probs = {label: prob for label, prob in zip(labels, probs)}
             details['model_predictions'] = label_probs
             
-            # Calculate combined score
+            # Calculate combined score with adjusted weights
             iva_prob = label_probs.get('IVA', 0)
             other_prob = label_probs.get('Other', 0)
             
-            # If keyword score is significant (>= 0.5) and model is somewhat confident
-            if keyword_score >= 0.5 and iva_prob >= 0.3:
-                combined_score = (keyword_score + iva_prob) / 2
-                details['combined_score'] = combined_score
-                return combined_score >= threshold, details
-            
-            # If model is very confident about "Other"
-            if other_prob >= 0.7:
-                details['combined_score'] = 1 - other_prob
+            # If "Other" probability is very high and no strong keywords, it's not relevant
+            if other_prob >= 0.8 and keyword_score < 0.6:
+                details['combined_score'] = 0.0
                 return False, details
             
-            # If model is very confident about "IVA"
-            if iva_prob >= 0.9:
-                details['combined_score'] = iva_prob
+            # If IVA probability is decent and we have keywords, it's relevant
+            if iva_prob >= 0.4 and keyword_score >= 0.5:
+                combined_score = (iva_prob * 0.4 + keyword_score * 0.6)
+                details['combined_score'] = combined_score
                 return True, details
             
-            # Default case: use weighted combination
-            combined_score = (keyword_score * 0.6 + iva_prob * 0.4)
+            # Default case: weighted combination favoring keywords
+            combined_score = (keyword_score * 0.7 + iva_prob * 0.3)
             details['combined_score'] = combined_score
             return combined_score >= threshold, details
         
-        # If no model available, fall back to keyword matching
+        # If no model available, fall back to keyword matching with adjusted threshold
         details['combined_score'] = keyword_score
-        return keyword_score >= threshold, details 
+        return keyword_score >= 0.6, details  # Lowered threshold for keyword-only matching 
