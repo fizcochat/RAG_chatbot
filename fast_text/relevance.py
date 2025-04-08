@@ -55,7 +55,9 @@ class FastTextRelevanceChecker:
             'impresa': 0.6,   # Added for business-related queries
             'azienda': 0.6,   # Added for business-related queries
             'freelancer': 0.7, # Added for freelancer queries
-            'professionista': 0.7 # Added for professional queries
+            'professionista': 0.7, # Added for professional queries
+            'aliquote': 0.8,  # Added for tax rate queries
+            'aliquota': 0.8   # Added for tax rate queries
         }
         
         # Tax-related phrases and their weights
@@ -121,6 +123,9 @@ class FastTextRelevanceChecker:
     
     def _preprocess_text(self, text: str) -> str:
         """Preprocess text for relevance checking."""
+        if text is None:
+            raise ValueError("Input text cannot be None")
+            
         # Convert to lowercase
         text = text.lower()
         
@@ -134,6 +139,9 @@ class FastTextRelevanceChecker:
     
     def _calculate_keyword_score(self, text: str) -> Tuple[float, Set[str], Set[str]]:
         """Calculate relevance score based on keywords and phrases."""
+        if not text:
+            return 0.0, set(), set()
+            
         # Initialize variables
         max_score = 0.0
         found_keywords = set()
@@ -166,7 +174,13 @@ class FastTextRelevanceChecker:
         Returns:
             Tuple of (is_relevant, details)
         """
-        if not text:
+        if text is None:
+            raise ValueError("Input text cannot be None")
+            
+        if not isinstance(text, str):
+            raise TypeError(f"Input text must be a string, got {type(text)}")
+            
+        if not text.strip():
             return False, {'preprocessed_text': '', 'keyword_score': 0.0, 'keywords_found': set(), 'phrases_found': set()}
         
         # Preprocess the text
@@ -230,12 +244,14 @@ class FastTextRelevanceChecker:
                 details['context_relevance'] = True
                 details['context_score'] = max_context_score
                 details['context_keywords'] = context_keywords
+                # Boost keyword score for follow-up questions
+                details['keyword_score'] = max(keyword_score, max_context_score * 0.8)
                 return True, details
         
         # If we have a strong keyword match, consider it relevant
         if keyword_score >= 0.7 or 'iva' in processed_text or \
            any(phrase in processed_text for phrase in ['partita iva', 'aliquote iva']) or \
-           any(kw in processed_text for kw in ['detrarre', 'spese', 'freelancer']):
+           any(kw in processed_text for kw in ['detrarre', 'spese', 'freelancer', 'aliquot']):
             details['combined_score'] = max(keyword_score, 0.8)
             return True, details
         
