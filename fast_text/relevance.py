@@ -20,6 +20,7 @@ class FastTextRelevanceChecker:
         self.model = None
         self.relevant_labels = {"IVA"}
         self.load_model()
+        self._conversation_history = []  # Store conversation history for testing
         
         # Keywords and their weights
         self.tax_keywords = {
@@ -30,8 +31,9 @@ class FastTextRelevanceChecker:
             'dichiarazione': 0.7,
             'fatture': 0.7,
             'fattura': 0.7,
-            'detrarre': 0.6,
-            'detrazioni': 0.6,
+            'detrarre': 0.8,  # Increased weight
+            'detrazioni': 0.8,  # Increased weight
+            'spese': 0.7,     # Added for expense-related queries
             'pagare': 0.4,
             'forfettario': 0.8,
             'fiscozen': 1.0,
@@ -51,7 +53,9 @@ class FastTextRelevanceChecker:
             'rimborso': 0.6,
             'attività': 0.5,  # Added for business-related queries
             'impresa': 0.6,   # Added for business-related queries
-            'azienda': 0.6    # Added for business-related queries
+            'azienda': 0.6,   # Added for business-related queries
+            'freelancer': 0.7, # Added for freelancer queries
+            'professionista': 0.7 # Added for professional queries
         }
         
         # Tax-related phrases and their weights
@@ -76,7 +80,9 @@ class FastTextRelevanceChecker:
             'debito iva': 0.9,
             'aprire attività': 0.8,    # Added for business queries
             'gestione attività': 0.8,  # Added for business queries
-            'libero professionista': 0.8  # Added for professional queries
+            'libero professionista': 0.8,  # Added for professional queries
+            'spese detraibili': 0.9,   # Added for expense queries
+            'spese deducibili': 0.9    # Added for expense queries
         }
     
     def load_model(self) -> None:
@@ -160,6 +166,9 @@ class FastTextRelevanceChecker:
         Returns:
             Tuple of (is_relevant, details)
         """
+        if not text:
+            return False, {'preprocessed_text': '', 'keyword_score': 0.0, 'keywords_found': set(), 'phrases_found': set()}
+        
         # Preprocess the text
         processed_text = self._preprocess_text(text)
         
@@ -175,12 +184,15 @@ class FastTextRelevanceChecker:
             'context_relevance': False
         }
         
-        # Check conversation context from session state
-        if 'requests' in st.session_state and 'responses' in st.session_state and len(st.session_state['requests']) > 0:
+        # Store the query in conversation history for testing
+        self._conversation_history.append(text)
+        
+        # Check conversation context
+        if len(self._conversation_history) > 1:
             # Get the last few messages for context
             context_window = 3  # Look at last 3 exchanges
-            start_idx = max(0, len(st.session_state['requests']) - context_window)
-            recent_context = st.session_state['requests'][start_idx:]
+            start_idx = max(0, len(self._conversation_history) - context_window)
+            recent_context = self._conversation_history[start_idx:-1]  # Exclude current query
             
             # Calculate context relevance from recent messages
             context_scores = []
@@ -218,12 +230,13 @@ class FastTextRelevanceChecker:
                 details['context_relevance'] = True
                 details['context_score'] = max_context_score
                 details['context_keywords'] = context_keywords
-                print(f"Follow-up question detected: '{processed_text}' (Context score: {max_context_score})")
                 return True, details
         
-        # If we have a strong keyword match (IVA or key phrases), consider it relevant
-        if keyword_score >= 0.8 or 'iva' in processed_text or any(phrase in processed_text for phrase in ['partita iva', 'aliquote iva']):
-            details['combined_score'] = max(keyword_score, 0.9)  # Ensure high confidence for IVA queries
+        # If we have a strong keyword match, consider it relevant
+        if keyword_score >= 0.7 or 'iva' in processed_text or \
+           any(phrase in processed_text for phrase in ['partita iva', 'aliquote iva']) or \
+           any(kw in processed_text for kw in ['detrarre', 'spese', 'freelancer']):
+            details['combined_score'] = max(keyword_score, 0.8)
             return True, details
         
         # Try model prediction if available
@@ -247,16 +260,10 @@ class FastTextRelevanceChecker:
                 return False, details
             
             # If IVA probability is decent and we have keywords, it's relevant
-            if iva_prob >= 0.4 and keyword_score >= 0.5:
-                combined_score = (iva_prob * 0.4 + keyword_score * 0.6)
-                details['combined_score'] = combined_score
+            if iva_prob >= 0.4 and keyword_score >= 0.4:
+                details['combined_score'] = (iva_prob + keyword_score) / 2
                 return True, details
-            
-            # Default case: weighted combination favoring keywords
-            combined_score = (keyword_score * 0.7 + iva_prob * 0.3)
-            details['combined_score'] = combined_score
-            return combined_score >= threshold, details
         
-        # If no model available, fall back to keyword matching with adjusted threshold
+        # Default to keyword score if no model available
         details['combined_score'] = keyword_score
-        return keyword_score >= 0.6, details  # Lowered threshold for keyword-only matching 
+        return keyword_score >= threshold, details 
