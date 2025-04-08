@@ -2,6 +2,7 @@ from langchain_openai import OpenAIEmbeddings
 import openai
 from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
+from langchain.schema import HumanMessage, AIMessage
 import streamlit as st
 
 # Load the environment variables from the .env file
@@ -73,20 +74,54 @@ def query_refiner(conversation, query):
             raise ValueError("OpenAI client not initialized")
         client = st.session_state['openai_client']
         
-        # Take only the last 2 exchanges from the conversation
-        conversation_lines = conversation.split('\n')[-4:] if conversation else []
-        shortened_conversation = '\n'.join(conversation_lines)
+        # Get conversation history from memory
+        if 'memory' in st.session_state:
+            memory_buffer = st.session_state['memory']
+            chat_history = memory_buffer.load_memory_variables({})
+            history_str = ""
+            
+            # Format the conversation history
+            if "chat_history" in chat_history and chat_history["chat_history"]:
+                for message in chat_history["chat_history"]:
+                    if isinstance(message, HumanMessage):
+                        history_str += f"Human: {message.content}\n"
+                    elif isinstance(message, AIMessage):
+                        history_str += f"Assistant: {message.content}\n"
+        else:
+            # Fallback to basic conversation string if memory not available
+            history_str = conversation
         
+        # Create the prompt for query refinement
+        prompt = f"""Given the following conversation history and user query, formulate a question that would be most relevant to provide a helpful answer from our knowledge base about Italian taxes, IVA, and fiscal matters.
+
+CONVERSATION HISTORY:
+{history_str}
+
+CURRENT QUERY: {query}
+
+Please consider:
+1. Previous context from the conversation
+2. Specific tax-related terms mentioned
+3. Any clarifications or follow-up questions needed
+
+REFINED QUERY:"""
+        
+        # Get the refined query
         response = client.completions.create(
             model="gpt-3.5-turbo-instruct",
-            prompt=f"Given the following user query and conversation log, formulate a question that would be the most relevant to provide the user with an answer from a knowledge base.\n\nCONVERSATION LOG: \n{shortened_conversation}\n\nQuery: {query}\n\nRefined Query:",
+            prompt=prompt,
             temperature=0.7,
             max_tokens=256,
             top_p=1,
             frequency_penalty=0,
             presence_penalty=0
         )
-        return response.choices[0].text
+        
+        refined_query = response.choices[0].text.strip()
+        print(f"Original query: {query}")
+        print(f"Refined query: {refined_query}")
+        return refined_query
+        
     except Exception as e:
         print(f"Error in query_refiner: {e}")
         return query  # Return original query if refinement fails

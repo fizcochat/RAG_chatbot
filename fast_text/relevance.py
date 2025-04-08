@@ -9,6 +9,7 @@ import os
 import re
 import logging
 from typing import List, Tuple, Optional, Set, Dict
+import streamlit as st
 
 class FastTextRelevanceChecker:
     """Checks if text is relevant to tax/IVA topics using FastText classifier."""
@@ -170,8 +171,55 @@ class FastTextRelevanceChecker:
             'preprocessed_text': processed_text,
             'keyword_score': keyword_score,
             'keywords_found': found_keywords,
-            'phrases_found': found_phrases
+            'phrases_found': found_phrases,
+            'context_relevance': False
         }
+        
+        # Check conversation context from session state
+        if 'requests' in st.session_state and 'responses' in st.session_state and len(st.session_state['requests']) > 0:
+            # Get the last few messages for context
+            context_window = 3  # Look at last 3 exchanges
+            start_idx = max(0, len(st.session_state['requests']) - context_window)
+            recent_context = st.session_state['requests'][start_idx:]
+            
+            # Calculate context relevance from recent messages
+            context_scores = []
+            context_keywords = set()
+            for msg in recent_context:
+                score, keywords, phrases = self._calculate_keyword_score(self._preprocess_text(msg))
+                if score >= 0.6:  # If any recent message was tax-related
+                    context_scores.append(score)
+                    context_keywords.update(keywords)
+            
+            # Get the highest context score
+            max_context_score = max(context_scores) if context_scores else 0
+            
+            # Check if this is a follow-up question
+            is_followup = False
+            
+            # 1. Check for short queries with question words
+            question_words = {'come', 'quanto', 'quali', 'dove', 'quando', 'perché', 'chi', 'cosa', 'e', 'ma', 'per'}
+            words = set(processed_text.split())
+            if words.intersection(question_words) and len(words) <= 6:
+                is_followup = True
+            
+            # 2. Check for queries starting with conjunctions
+            conjunctions = {'e', 'ma', 'però', 'oppure', 'invece'}
+            first_word = processed_text.split()[0] if processed_text else ''
+            if first_word in conjunctions:
+                is_followup = True
+            
+            # 3. Check for incomplete sentences that rely on context
+            if len(words) <= 4 and not any(word in self.tax_keywords for word in words):
+                is_followup = True
+            
+            # If this is a follow-up and we have relevant context, consider it relevant
+            if is_followup and max_context_score >= 0.6:
+                details['context_relevance'] = True
+                details['context_score'] = max_context_score
+                details['context_keywords'] = context_keywords
+                print(f"Follow-up question detected: '{processed_text}' (Context score: {max_context_score})")
+                return True, details
         
         # If we have a strong keyword match (IVA or key phrases), consider it relevant
         if keyword_score >= 0.8 or 'iva' in processed_text or any(phrase in processed_text for phrase in ['partita iva', 'aliquote iva']):

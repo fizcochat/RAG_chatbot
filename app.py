@@ -8,6 +8,8 @@ from streamlit_chat import message
 from fast_text.relevance import FastTextRelevanceChecker
 from utils import initialize_services, find_match, query_refiner, get_conversation_string
 from langchain_openai import ChatOpenAI
+from langchain.memory import ConversationBufferMemory
+from langchain.schema import HumanMessage, AIMessage
 from dotenv import load_dotenv
 import uuid
 
@@ -39,6 +41,14 @@ try:
     # Initialize LLM
     if 'llm' not in st.session_state:
         st.session_state['llm'] = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
+    
+    # Initialize conversation memory
+    if 'memory' not in st.session_state:
+        st.session_state['memory'] = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True,
+            output_key="answer"
+        )
 except Exception as e:
     st.error(f"Error initializing services: {e}")
     st.stop()
@@ -87,6 +97,12 @@ with input_container:
                     conversation_string = get_conversation_string()
                     refined_query = query_refiner(conversation_string, user_input)
                     response = find_match(refined_query)
+                    
+                    # Update conversation memory
+                    st.session_state['memory'].save_context(
+                        {"input": user_input},
+                        {"answer": response}
+                    )
             except Exception as e:
                 st.error(f"Error processing query: {e}")
                 response = "Mi dispiace, si è verificato un errore. Per favore, riprova."
@@ -101,4 +117,11 @@ with response_container:
         for i in range(len(st.session_state['responses'])):
             if i < len(st.session_state['requests']):
                 message(st.session_state['requests'][i], is_user=True, key=f"user_msg_{i}")
-            message(st.session_state['responses'][i], key=f"bot_msg_{i}") 
+            message(st.session_state['responses'][i], key=f"bot_msg_{i}")
+
+# Add a button to clear conversation history
+if st.button("Clear Conversation"):
+    st.session_state['responses'] = []
+    st.session_state['requests'] = []
+    st.session_state['memory'].clear()
+    st.session_state['conversation_id'] = str(uuid.uuid4()) 
