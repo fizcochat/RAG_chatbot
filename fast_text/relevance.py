@@ -156,10 +156,16 @@ class FastTextRelevanceChecker:
         # Check for individual keywords
         words = set(text.split())
         for word in words:
+            # Check for exact matches
             if word in self.tax_keywords:
                 weight = self.tax_keywords[word]
                 max_score = max(max_score, weight)
                 found_keywords.add(f"{word} ({weight:.1f})")
+            # Check for partial matches (e.g., 'iva' in 'liva')
+            elif any(keyword in word for keyword in self.tax_keywords):
+                # Use a lower weight for partial matches
+                max_score = max(max_score, 0.6)
+                found_keywords.add(f"{word} (0.6)")
         
         return max_score, found_keywords, found_phrases
     
