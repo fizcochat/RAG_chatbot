@@ -46,7 +46,12 @@ def mock_fasttext():
     """Fixture to create a mock FastText model."""
     with patch('fasttext.load_model') as mock_load:
         mock_model = Mock()
-        mock_model.predict.return_value = (["__label__tax"], [0.8])  # Default prediction
+        # Mock the predict method to return proper format: (labels, probabilities)
+        def mock_predict(text, k=-1):
+            if any(kw in text.lower() for kw in ['iva', 'tax', 'fiscal', 'redditi', 'fattur']):
+                return (["__label__IVA"], [0.8])
+            return (["__label__Other"], [0.9])
+        mock_model.predict = mock_predict
         mock_load.return_value = mock_model
         yield mock_model
 
@@ -55,8 +60,8 @@ def relevance_checker(mock_fasttext):
     """Fixture to create and return a FastTextRelevanceChecker instance with mocked model."""
     model_path = "fast_text/models/tax_classifier.bin"
     checker = FastTextRelevanceChecker(model_path)
-    # Ensure keyword scoring works
-    checker._calculate_keyword_score = lambda text: 0.8 if any(kw in text.lower() for kw in ['iva', 'tax', 'fiscal']) else 0.2
+    # Override the model to use our mock
+    checker.model = mock_fasttext
     return checker
 
 def test_relevance_checker_initialization(relevance_checker):
@@ -93,7 +98,7 @@ def test_keyword_scoring(relevance_checker):
     """Test the keyword scoring functionality."""
     # Test with a known tax-related query
     query = "Come funziona l'IVA?"
-    _, details = relevance_checker.is_relevant(query)
+    is_relevant, details = relevance_checker.is_relevant(query)
     
     assert details['keyword_score'] > 0.5, "Tax-related query should have high keyword score"
     assert 'iva' in details['preprocessed_text'].lower(), "Preprocessed text should contain 'iva'"
