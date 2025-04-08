@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     gcc \
     g++ \
+    cmake \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
