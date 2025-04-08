@@ -10,4 +10,10 @@ try:
 except ImportError:
     # Provide a message but don't fail - allows the package to be imported even if relevance.py isn't there yet
     import warnings
-    warnings.warn("Could not import FastTextRelevanceChecker. Make sure relevance.py exists in the fast_text directory.") 
+    warnings.warn("Could not import FastTextRelevanceChecker. Make sure relevance.py exists in the fast_text directory.")
+
+"""
+FastText module for tax-related text classification.
+"""
+
+__all__ = ['FastTextRelevanceChecker'] 
