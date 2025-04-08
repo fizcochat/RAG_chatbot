@@ -12,6 +12,7 @@ import uuid
 import time
 import random
 from pathlib import Path
+import psutil
 
 # === Global Variables and Environment Detection ===
 # Check if we're running in a test environment
@@ -191,6 +192,38 @@ After adding documents, run `python main.py` to retrain the model.
     else:
         print("✅ FastText model ready for use")
 
+def terminate_streamlit_processes():
+    """Terminate any running Streamlit processes in a cross-platform way."""
+    try:
+        # Find and terminate Streamlit processes
+        terminated = False
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                # Check if this is a Streamlit process
+                if proc.info['cmdline'] and any('streamlit' in cmd.lower() for cmd in proc.info['cmdline']):
+                    proc.terminate()
+                    terminated = True
+                    print(f"Terminated Streamlit process: {proc.info['pid']}")
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        
+        if terminated:
+            # Give processes time to terminate gracefully
+            time.sleep(2)
+            
+            # Force kill any remaining processes
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    if proc.info['cmdline'] and any('streamlit' in cmd.lower() for cmd in proc.info['cmdline']):
+                        proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+        
+        return terminated
+    except Exception as e:
+        print(f"Warning: Could not terminate Streamlit processes: {e}")
+        return False
+
 def launch_chatbot():
     """Launch the Streamlit chatbot"""
     print("\n=== Launching Fiscozen Tax Chatbot ===")
@@ -201,15 +234,15 @@ def launch_chatbot():
     
     print("🚀 Starting Streamlit server...")
     try:
-        # Kill any existing Streamlit processes
-        subprocess.call(["pkill", "-f", "streamlit"])
-        time.sleep(2)  # Wait for processes to be killed
+        # Terminate any existing Streamlit processes
+        if terminate_streamlit_processes():
+            print("✅ Terminated existing Streamlit processes")
         
         # Set headless mode for server
         os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
         
         # Launch Streamlit with specific port and app file
-        subprocess.call([
+        subprocess.Popen([
             sys.executable, 
             "-m", 
             "streamlit", 
@@ -218,6 +251,10 @@ def launch_chatbot():
             "--server.port=8501",
             "--server.address=localhost"
         ])
+        
+        print("✅ Streamlit server started successfully!")
+        print("📱 Access the chatbot at: http://localhost:8501")
+        
     except Exception as e:
         print(f"❌ Failed to start Streamlit server: {e}")
         sys.exit(1)
