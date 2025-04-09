@@ -11,10 +11,6 @@ import logging
 from typing import List, Tuple, Optional, Set, Dict
 import streamlit as st
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 class FastTextRelevanceChecker:
     """Checks if text is relevant to tax/IVA topics using FastText classifier."""
     
@@ -35,86 +31,94 @@ class FastTextRelevanceChecker:
             'dichiarazione': 0.7,
             'fatture': 0.7,
             'fattura': 0.7,
-            'detrarre': 0.8,
-            'detrazioni': 0.8,
-            'spese': 0.7,
+            'detrarre': 0.8,  # Increased weight
+            'detrazioni': 0.8,  # Increased weight
+            'spese': 0.7,     # Added for expense-related queries
             'pagare': 0.4,
             'forfettario': 0.8,
             'fiscozen': 1.0,
-            'partita': 0.6,
+            'partita': 0.6,  # Usually part of "partita IVA"
             'redditi': 0.8,
             'tributario': 0.8,
             'tributi': 0.8,
             'contributi': 0.6,
             'contribuente': 0.7,
-            'agenzia': 0.5,
-            'entrate': 0.5,
+            'agenzia': 0.5,  # Usually part of "Agenzia delle Entrate"
+            'entrate': 0.5,  # Usually part of "Agenzia delle Entrate"
             'commercialista': 0.7,
             'contabile': 0.7,
             'contabilità': 0.7,
+            'esenzione': 0.8,
+            'evasione': 0.8,
+            'rimborso': 0.6,
+            'attività': 0.5,  # Added for business-related queries
+            'impresa': 0.6,   # Added for business-related queries
+            'azienda': 0.6,   # Added for business-related queries
+            'freelancer': 0.7, # Added for freelancer queries
+            'professionista': 0.7, # Added for professional queries
+            'aliquote': 0.8,  # Added for tax rate queries
+            'aliquota': 0.8   # Added for tax rate queries
         }
         
-        # Phrases and their weights
+        # Tax-related phrases and their weights
         self.tax_phrases = {
-            "partita iva": 1.0,
-            "agenzia delle entrate": 0.9,
-            "dichiarazione dei redditi": 0.9,
-            "regime forfettario": 0.8,
-            "codice fiscale": 0.7,
-            "fattura elettronica": 0.8,
-            "spese detraibili": 0.8,
-            "spese deducibili": 0.8,
-            "imposta sul reddito": 0.9,
-            "imposta di registro": 0.7,
-            "imposta di bollo": 0.7,
-            "imposta di successione": 0.7,
-            "imposta ipotecaria": 0.7,
-            "imposta catastale": 0.7,
-            "imposta di donazione": 0.7,
-            "imposta di trascrizione": 0.7,
-            "imposta di registro": 0.7,
-            "imposta di bollo": 0.7,
-            "imposta di successione": 0.7,
-            "imposta ipotecaria": 0.7,
-            "imposta catastale": 0.7,
-            "imposta di donazione": 0.7,
-            "imposta di trascrizione": 0.7,
+            'partita iva': 1.0,
+            'regime forfettario': 1.0,
+            'dichiarazione redditi': 1.0,
+            'agenzia delle entrate': 0.9,
+            'agenzia entrate': 0.9,
+            'aliquote iva': 1.0,
+            'carico fiscale': 0.9,
+            'imposta sul valore': 1.0,
+            'valore aggiunto': 0.9,
+            'codice fiscale': 0.8,
+            'sistema tributario': 0.9,
+            'evasione fiscale': 0.9,
+            'consulenza fiscale': 0.9,
+            'gestione fiscale': 0.9,
+            'contabilità aziendale': 0.8,
+            'rimborso iva': 0.9,
+            'credito iva': 0.9,
+            'debito iva': 0.9,
+            'aprire attività': 0.8,    # Added for business queries
+            'gestione attività': 0.8,  # Added for business queries
+            'libero professionista': 0.8,  # Added for professional queries
+            'spese detraibili': 0.9,   # Added for expense queries
+            'spese deducibili': 0.9    # Added for expense queries
         }
     
-    def load_model(self):
-        """Load the FastText model."""
+    def load_model(self) -> None:
+        """Load the FastText model from the specified path."""
         try:
             import fasttext
-            logger.info(f"Checking for model at: {self.model_path}")
-            logger.info(f"Current working directory: {os.getcwd()}")
-            
-            # Try to find the model file
-            if not os.path.exists(self.model_path):
-                # Try relative path
-                rel_path = os.path.join(os.getcwd(), self.model_path)
-                if os.path.exists(rel_path):
-                    self.model_path = rel_path
-                else:
-                    # Try absolute path
-                    abs_path = os.path.join("/app", self.model_path)
-                    if os.path.exists(abs_path):
-                        self.model_path = abs_path
-                    else:
-                        logger.error(f"❌ Model file not found at {self.model_path}")
-                        logger.error(f"Current working directory: {os.getcwd()}")
-                        return
-            
-            logger.info(f"Loading model from: {self.model_path}")
-            self.model = fasttext.load_model(self.model_path)
-            logger.info("✅ Model loaded successfully")
-            
-            # Test the model
-            test_text = "Come funziona l'IVA?"
-            prediction = self.model.predict(test_text)
-            logger.info(f"Model test prediction for '{test_text}': {prediction}")
-            
+            print(f"Checking for model at: {self.model_path}")
+            if os.path.exists(self.model_path):
+                print("Model file found, loading...")
+                self.model = fasttext.load_model(self.model_path)
+                # Test the model with multiple examples
+                test_texts = [
+                    "Come funziona l'IVA?",
+                    "Come funziona l'IVA per un libero professionista?",
+                    "Quanto costa aprire un'attività?",
+                    "Che tempo farà domani?"
+                ]
+                for text in test_texts:
+                    predictions = self.model.predict(text, k=-1)
+                    print(f"Model test prediction for '{text}': {predictions}")
+                logging.info(f"Successfully loaded FastText model from {self.model_path}")
+            else:
+                print(f"❌ Model file not found at {self.model_path}")
+                print("Current working directory:", os.getcwd())
+                print("Directory contents:", os.listdir(os.path.dirname(self.model_path)))
+                logging.warning(f"Model file not found at {self.model_path}")
+                self.model = None
+        except ImportError as e:
+            print(f"❌ Error importing fasttext: {e}")
+            logging.error(f"Error importing fasttext: {e}")
+            self.model = None
         except Exception as e:
-            logger.error(f"❌ Error loading FastText model: {e}")
+            print(f"❌ Error loading FastText model: {e}")
+            logging.error(f"Error loading FastText model: {e}")
             self.model = None
     
     def _preprocess_text(self, text: str) -> str:
@@ -133,7 +137,7 @@ class FastTextRelevanceChecker:
         
         return text
     
-    def _calculate_keyword_score(self, text: str, context_score: float = 0.0) -> Tuple[float, Set[str], Set[str]]:
+    def _calculate_keyword_score(self, text: str) -> Tuple[float, Set[str], Set[str]]:
         """Calculate relevance score based on keywords and phrases."""
         if not text:
             return 0.0, set(), set()
@@ -163,21 +167,6 @@ class FastTextRelevanceChecker:
                 max_score = max(max_score, 0.6)
                 found_keywords.add(f"{word} (0.6)")
         
-        # Boost score for follow-up questions based on context
-        if context_score > 0:
-            # If we have a strong context (previous tax-related question)
-            # and this is a short follow-up question, boost the score
-            if len(words) <= 4 and context_score >= 0.7:
-                # For follow-up questions, use the context score as a base
-                # and add a boost for tax-related keywords
-                base_score = context_score * 0.8
-                # Add a boost for tax-related keywords in the follow-up
-                keyword_boost = 0.3 if any(word in self.tax_keywords for word in words) else 0.0
-                # Add a boost for tax-related phrases in the follow-up
-                phrase_boost = 0.3 if any(phrase in text for phrase in self.tax_phrases) else 0.0
-                max_score = max(max_score, base_score + keyword_boost + phrase_boost)
-                found_keywords.add("context_boost")
-        
         return max_score, found_keywords, found_phrases
     
     def is_relevant(self, text: str, threshold: float = 0.6) -> Tuple[bool, dict]:
@@ -187,7 +176,7 @@ class FastTextRelevanceChecker:
         Args:
             text: The text to check
             threshold: Confidence threshold for relevance (0.0 to 1.0)
-        
+            
         Returns:
             Tuple of (is_relevant, details)
         """
@@ -203,8 +192,22 @@ class FastTextRelevanceChecker:
         # Preprocess the text
         processed_text = self._preprocess_text(text)
         
-        # Calculate context score from previous messages
-        context_score = 0.0
+        # Calculate keyword-based score
+        keyword_score, found_keywords, found_phrases = self._calculate_keyword_score(processed_text)
+        
+        # Initialize result details
+        details = {
+            'preprocessed_text': processed_text,
+            'keyword_score': keyword_score,
+            'keywords_found': found_keywords,
+            'phrases_found': found_phrases,
+            'context_relevance': False
+        }
+        
+        # Store the query in conversation history for testing
+        self._conversation_history.append(text)
+        
+        # Check conversation context
         if len(self._conversation_history) > 1:
             # Get the last few messages for context
             context_window = 3  # Look at last 3 exchanges
@@ -213,28 +216,43 @@ class FastTextRelevanceChecker:
             
             # Calculate context relevance from recent messages
             context_scores = []
+            context_keywords = set()
             for msg in recent_context:
-                score, _, _ = self._calculate_keyword_score(self._preprocess_text(msg))
-                context_scores.append(score)
+                score, keywords, phrases = self._calculate_keyword_score(self._preprocess_text(msg))
+                if score >= 0.6:  # If any recent message was tax-related
+                    context_scores.append(score)
+                    context_keywords.update(keywords)
             
             # Get the highest context score
-            context_score = max(context_scores) if context_scores else 0
-        
-        # Calculate keyword-based score with context
-        keyword_score, found_keywords, found_phrases = self._calculate_keyword_score(processed_text, context_score)
-        
-        # Initialize result details
-        details = {
-            'preprocessed_text': processed_text,
-            'keyword_score': keyword_score,
-            'keywords_found': found_keywords,
-            'phrases_found': found_phrases,
-            'context_relevance': context_score > 0,
-            'context_score': context_score
-        }
-        
-        # Store the query in conversation history
-        self._conversation_history.append(text)
+            max_context_score = max(context_scores) if context_scores else 0
+            
+            # Check if this is a follow-up question
+            is_followup = False
+            
+            # 1. Check for short queries with question words
+            question_words = {'come', 'quanto', 'quali', 'dove', 'quando', 'perché', 'chi', 'cosa', 'e', 'ma', 'per'}
+            words = set(processed_text.split())
+            if words.intersection(question_words) and len(words) <= 6:
+                is_followup = True
+            
+            # 2. Check for queries starting with conjunctions
+            conjunctions = {'e', 'ma', 'però', 'oppure', 'invece'}
+            first_word = processed_text.split()[0] if processed_text else ''
+            if first_word in conjunctions:
+                is_followup = True
+            
+            # 3. Check for incomplete sentences that rely on context
+            if len(words) <= 4 and not any(word in self.tax_keywords for word in words):
+                is_followup = True
+            
+            # If this is a follow-up and we have relevant context, consider it relevant
+            if is_followup and max_context_score >= 0.6:
+                details['context_relevance'] = True
+                details['context_score'] = max_context_score
+                details['context_keywords'] = context_keywords
+                # Boost keyword score for follow-up questions
+                details['keyword_score'] = max(keyword_score, max_context_score * 0.8)
+                return True, details
         
         # If we have a strong keyword match, consider it relevant
         if keyword_score >= 0.7 or 'iva' in processed_text or \
