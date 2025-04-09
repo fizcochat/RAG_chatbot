@@ -17,19 +17,23 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir streamlit
 
-# Create necessary directories and test model
-RUN mkdir -p fast_text/models \
-    data_documents \
-    dtaa-documents \
-    argilla_data_49 \
-    argilla-data
+# Create necessary directories
+RUN mkdir -p /app/fast_text/models \
+    /app/data_documents \
+    /app/dtaa-documents \
+    /app/argilla_data_49 \
+    /app/argilla-data
 
 # Copy the rest of the application
 COPY . .
 
-# Ensure the model directory exists and create a test model file
-RUN mkdir -p /app/fast_text/models && \
-    echo "__label__IVA 1.0" > /app/fast_text/models/tax_classifier.bin
+# Create a proper FastText model file
+RUN echo "__label__IVA Come funziona l'IVA?" > /app/fast_text/models/tax_classifier.txt && \
+    echo "__label__Other Che tempo fa?" >> /app/fast_text/models/tax_classifier.txt && \
+    python -c "import fasttext; model = fasttext.train_supervised('/app/fast_text/models/tax_classifier.txt'); model.save_model('/app/fast_text/models/tax_classifier.bin')"
+
+# Verify the model file exists
+RUN ls -la /app/fast_text/models/
 
 EXPOSE 8501
 
