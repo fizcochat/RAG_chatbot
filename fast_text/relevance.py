@@ -10,33 +10,17 @@ import re
 import logging
 from typing import List, Tuple, Optional, Set, Dict
 import streamlit as st
+import fasttext
 
 class FastTextRelevanceChecker:
     """Checks if text is relevant to tax/IVA topics using FastText classifier."""
     
     def __init__(self, model_path: str = None):
         """Initialize the relevance checker with a FastText model."""
-        # Set default model path if none provided
-        if model_path is None:
-            # Try to find the model in different possible locations
-            possible_paths = [
-                "fast_text/models/tax_classifier.bin",
-                "/app/fast_text/models/tax_classifier.bin",
-                os.path.join(os.path.dirname(__file__), "models/tax_classifier.bin")
-            ]
-            
-            for path in possible_paths:
-                if os.path.exists(path):
-                    self.model_path = path
-                    break
-            else:
-                self.model_path = "fast_text/models/tax_classifier.bin"
-        else:
-            self.model_path = model_path
-            
+        self.model_path = model_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'tax_classifier.bin')
         self.model = None
         self.relevant_labels = {"IVA"}
-        self.load_model()
+        self._load_model()
         self._conversation_history = []  # Store conversation history for testing
         
         # Keywords and their weights
@@ -104,39 +88,30 @@ class FastTextRelevanceChecker:
             'spese deducibili': 0.9    # Added for expense queries
         }
     
-    def load_model(self) -> None:
-        """Load the FastText model from the specified path."""
+    def _load_model(self):
+        """Load the FastText model with improved error handling and logging."""
         try:
-            import fasttext
-            print(f"Checking for model at: {self.model_path}")
-            if os.path.exists(self.model_path):
-                print("Model file found, loading...")
-                self.model = fasttext.load_model(self.model_path)
-                # Test the model with multiple examples
-                test_texts = [
-                    "Come funziona l'IVA?",
-                    "Come funziona l'IVA per un libero professionista?",
-                    "Quanto costa aprire un'attività?",
-                    "Che tempo farà domani?"
-                ]
-                for text in test_texts:
-                    predictions = self.model.predict(text, k=-1)
-                    print(f"Model test prediction for '{text}': {predictions}")
-                logging.info(f"Successfully loaded FastText model from {self.model_path}")
-            else:
-                print(f"❌ Model file not found at {self.model_path}")
-                print("Current working directory:", os.getcwd())
-                print("Directory contents:", os.listdir(os.path.dirname(self.model_path)))
-                logging.warning(f"Model file not found at {self.model_path}")
-                self.model = None
-        except ImportError as e:
-            print(f"❌ Error importing fasttext: {e}")
-            logging.error(f"Error importing fasttext: {e}")
-            self.model = None
+            print(f"Attempting to load model from: {self.model_path}")
+            if not os.path.exists(self.model_path):
+                print(f"Model file not found at: {self.model_path}")
+                print(f"Current working directory: {os.getcwd()}")
+                print(f"Directory contents: {os.listdir(os.path.dirname(self.model_path))}")
+                raise FileNotFoundError(f"FastText model not found at {self.model_path}")
+            
+            print("Model file found, loading...")
+            self.model = fasttext.load_model(self.model_path)
+            print("Model loaded successfully")
+            
+            # Test the model
+            test_text = "Come funziona l'IVA?"
+            prediction = self.model.predict(test_text)
+            print(f"Test prediction for '{test_text}': {prediction}")
+            
         except Exception as e:
-            print(f"❌ Error loading FastText model: {e}")
-            logging.error(f"Error loading FastText model: {e}")
-            self.model = None
+            print(f"Error loading FastText model: {str(e)}")
+            print(f"Model path: {self.model_path}")
+            print(f"Current working directory: {os.getcwd()}")
+            raise
     
     def _preprocess_text(self, text: str) -> str:
         """Preprocess text for relevance checking."""
