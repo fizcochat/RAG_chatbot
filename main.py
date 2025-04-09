@@ -1,3 +1,5 @@
+from fast_text.relevance import FastTextRelevanceChecker
+
 """
 Fiscozen Tax Chatbot - Main Application
 """
