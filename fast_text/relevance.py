@@ -14,9 +14,26 @@ import streamlit as st
 class FastTextRelevanceChecker:
     """Checks if text is relevant to tax/IVA topics using FastText classifier."""
     
-    def __init__(self, model_path: str = "fast_text/models/tax_classifier.bin"):
+    def __init__(self, model_path: str = None):
         """Initialize the relevance checker with a FastText model."""
-        self.model_path = model_path
+        # Set default model path if none provided
+        if model_path is None:
+            # Try to find the model in different possible locations
+            possible_paths = [
+                "fast_text/models/tax_classifier.bin",
+                "/app/fast_text/models/tax_classifier.bin",
+                os.path.join(os.path.dirname(__file__), "models/tax_classifier.bin")
+            ]
+            
+            for path in possible_paths:
+                if os.path.exists(path):
+                    self.model_path = path
+                    break
+            else:
+                self.model_path = "fast_text/models/tax_classifier.bin"
+        else:
+            self.model_path = model_path
+            
         self.model = None
         self.relevant_labels = {"IVA"}
         self.load_model()
