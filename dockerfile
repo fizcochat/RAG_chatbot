@@ -17,16 +17,19 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir streamlit
 
-# Create necessary directories for test data
-RUN mkdir -p fast_text/models data_documents dtaa-documents argilla_data_49 argilla-data
+# Create necessary directories and test model
+RUN mkdir -p fast_text/models \
+    data_documents \
+    dtaa-documents \
+    argilla_data_49 \
+    argilla-data
 
 # Copy the rest of the application
 COPY . .
 
-# Create a dummy model file for testing if it doesn't exist
-RUN if [ ! -f fast_text/models/tax_classifier.bin ]; then \
-    echo "dummy model" > fast_text/models/tax_classifier.bin; \
-    fi
+# Ensure the model directory exists and create a test model file
+RUN mkdir -p /app/fast_text/models && \
+    echo "__label__IVA 1.0" > /app/fast_text/models/tax_classifier.bin
 
 EXPOSE 8501
 
