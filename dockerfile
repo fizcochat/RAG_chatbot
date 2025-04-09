@@ -29,14 +29,19 @@ COPY . .
 
 # Create and save the FastText model
 RUN echo "__label__IVA Come funziona l'IVA?" > /app/fast_text/models/tax_classifier.txt && \
+    echo "__label__IVA Quali sono le aliquote IVA?" >> /app/fast_text/models/tax_classifier.txt && \
+    echo "__label__IVA Come si paga l'IVA?" >> /app/fast_text/models/tax_classifier.txt && \
+    echo "__label__IVA Dichiarazione dei redditi" >> /app/fast_text/models/tax_classifier.txt && \
     echo "__label__Other Che tempo fa?" >> /app/fast_text/models/tax_classifier.txt && \
+    echo "__label__Other Come si cucina la pasta?" >> /app/fast_text/models/tax_classifier.txt && \
     python -c "import fasttext; model = fasttext.train_supervised('/app/fast_text/models/tax_classifier.txt'); model.save_model('/app/fast_text/models/tax_classifier.bin')"
 
 # Debug: Show directory structure and model file
 RUN echo "Current directory:" && pwd && \
     echo "Directory contents:" && ls -la && \
     echo "fast_text directory contents:" && ls -la /app/fast_text && \
-    echo "fast_text/models directory contents:" && ls -la /app/fast_text/models
+    echo "fast_text/models directory contents:" && ls -la /app/fast_text/models && \
+    echo "Model file exists:" && test -f /app/fast_text/models/tax_classifier.bin && echo "Yes" || echo "No"
 
 EXPOSE 8501
 
