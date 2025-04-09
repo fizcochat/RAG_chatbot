@@ -68,6 +68,7 @@ def test_relevance_checker_initialization(relevance_checker):
     """Test that the relevance checker initializes correctly."""
     assert relevance_checker is not None
     assert isinstance(relevance_checker, FastTextRelevanceChecker)
+    assert relevance_checker.model is not None
 
 @pytest.mark.parametrize("query,expected_relevant", TEST_QUERIES)
 def test_query_relevance(relevance_checker, query, expected_relevant):
@@ -109,8 +110,8 @@ def test_invalid_input(relevance_checker):
     is_relevant, details = relevance_checker.is_relevant("")
     assert not is_relevant, "Empty string should not be relevant"
     
-    # Test with None (should raise TypeError)
-    with pytest.raises(Exception):
+    # Test with None (should raise ValueError)
+    with pytest.raises(ValueError):
         relevance_checker.is_relevant(None)
 
 def test_context_handling(relevance_checker):

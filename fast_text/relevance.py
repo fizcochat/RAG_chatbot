@@ -20,7 +20,6 @@ class FastTextRelevanceChecker:
         self.model_path = model_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'tax_classifier.bin')
         self.model = None
         self.relevant_labels = {"IVA"}
-        self._load_model()
         self._conversation_history = []  # Store conversation history for testing
         
         # Keywords and their weights
@@ -32,33 +31,33 @@ class FastTextRelevanceChecker:
             'dichiarazione': 0.7,
             'fatture': 0.7,
             'fattura': 0.7,
-            'detrarre': 0.8,  # Increased weight
-            'detrazioni': 0.8,  # Increased weight
-            'spese': 0.7,     # Added for expense-related queries
+            'detrarre': 0.8,
+            'detrazioni': 0.8,
+            'spese': 0.7,
             'pagare': 0.4,
             'forfettario': 0.8,
             'fiscozen': 1.0,
-            'partita': 0.6,  # Usually part of "partita IVA"
+            'partita': 0.6,
             'redditi': 0.8,
             'tributario': 0.8,
             'tributi': 0.8,
             'contributi': 0.6,
             'contribuente': 0.7,
-            'agenzia': 0.5,  # Usually part of "Agenzia delle Entrate"
-            'entrate': 0.5,  # Usually part of "Agenzia delle Entrate"
+            'agenzia': 0.5,
+            'entrate': 0.5,
             'commercialista': 0.7,
             'contabile': 0.7,
             'contabilità': 0.7,
             'esenzione': 0.8,
             'evasione': 0.8,
             'rimborso': 0.6,
-            'attività': 0.5,  # Added for business-related queries
-            'impresa': 0.6,   # Added for business-related queries
-            'azienda': 0.6,   # Added for business-related queries
-            'freelancer': 0.7, # Added for freelancer queries
-            'professionista': 0.7, # Added for professional queries
-            'aliquote': 0.8,  # Added for tax rate queries
-            'aliquota': 0.8   # Added for tax rate queries
+            'attività': 0.5,
+            'impresa': 0.6,
+            'azienda': 0.6,
+            'freelancer': 0.7,
+            'professionista': 0.7,
+            'aliquote': 0.8,
+            'aliquota': 0.8
         }
         
         # Tax-related phrases and their weights
@@ -81,12 +80,19 @@ class FastTextRelevanceChecker:
             'rimborso iva': 0.9,
             'credito iva': 0.9,
             'debito iva': 0.9,
-            'aprire attività': 0.8,    # Added for business queries
-            'gestione attività': 0.8,  # Added for business queries
-            'libero professionista': 0.8,  # Added for professional queries
-            'spese detraibili': 0.9,   # Added for expense queries
-            'spese deducibili': 0.9    # Added for expense queries
+            'aprire attività': 0.8,
+            'gestione attività': 0.8,
+            'libero professionista': 0.8,
+            'spese detraibili': 0.9,
+            'spese deducibili': 0.9
         }
+        
+        # Try to load the model, but don't fail if it's not available
+        try:
+            self._load_model()
+        except Exception as e:
+            print(f"Warning: Could not load FastText model: {str(e)}")
+            print("Continuing with keyword-based relevance checking only")
     
     def _load_model(self):
         """Load the FastText model with improved error handling and logging."""
