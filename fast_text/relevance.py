@@ -11,6 +11,10 @@ import logging
 from typing import List, Tuple, Optional, Set, Dict
 import streamlit as st
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 class FastTextRelevanceChecker:
     """Checks if text is relevant to tax/IVA topics using FastText classifier."""
     
@@ -31,94 +35,86 @@ class FastTextRelevanceChecker:
             'dichiarazione': 0.7,
             'fatture': 0.7,
             'fattura': 0.7,
-            'detrarre': 0.8,  # Increased weight
-            'detrazioni': 0.8,  # Increased weight
-            'spese': 0.7,     # Added for expense-related queries
+            'detrarre': 0.8,
+            'detrazioni': 0.8,
+            'spese': 0.7,
             'pagare': 0.4,
             'forfettario': 0.8,
             'fiscozen': 1.0,
-            'partita': 0.6,  # Usually part of "partita IVA"
+            'partita': 0.6,
             'redditi': 0.8,
             'tributario': 0.8,
             'tributi': 0.8,
             'contributi': 0.6,
             'contribuente': 0.7,
-            'agenzia': 0.5,  # Usually part of "Agenzia delle Entrate"
-            'entrate': 0.5,  # Usually part of "Agenzia delle Entrate"
+            'agenzia': 0.5,
+            'entrate': 0.5,
             'commercialista': 0.7,
             'contabile': 0.7,
             'contabilità': 0.7,
-            'esenzione': 0.8,
-            'evasione': 0.8,
-            'rimborso': 0.6,
-            'attività': 0.5,  # Added for business-related queries
-            'impresa': 0.6,   # Added for business-related queries
-            'azienda': 0.6,   # Added for business-related queries
-            'freelancer': 0.7, # Added for freelancer queries
-            'professionista': 0.7, # Added for professional queries
-            'aliquote': 0.8,  # Added for tax rate queries
-            'aliquota': 0.8   # Added for tax rate queries
         }
         
-        # Tax-related phrases and their weights
+        # Phrases and their weights
         self.tax_phrases = {
-            'partita iva': 1.0,
-            'regime forfettario': 1.0,
-            'dichiarazione redditi': 1.0,
-            'agenzia delle entrate': 0.9,
-            'agenzia entrate': 0.9,
-            'aliquote iva': 1.0,
-            'carico fiscale': 0.9,
-            'imposta sul valore': 1.0,
-            'valore aggiunto': 0.9,
-            'codice fiscale': 0.8,
-            'sistema tributario': 0.9,
-            'evasione fiscale': 0.9,
-            'consulenza fiscale': 0.9,
-            'gestione fiscale': 0.9,
-            'contabilità aziendale': 0.8,
-            'rimborso iva': 0.9,
-            'credito iva': 0.9,
-            'debito iva': 0.9,
-            'aprire attività': 0.8,    # Added for business queries
-            'gestione attività': 0.8,  # Added for business queries
-            'libero professionista': 0.8,  # Added for professional queries
-            'spese detraibili': 0.9,   # Added for expense queries
-            'spese deducibili': 0.9    # Added for expense queries
+            "partita iva": 1.0,
+            "agenzia delle entrate": 0.9,
+            "dichiarazione dei redditi": 0.9,
+            "regime forfettario": 0.8,
+            "codice fiscale": 0.7,
+            "fattura elettronica": 0.8,
+            "spese detraibili": 0.8,
+            "spese deducibili": 0.8,
+            "imposta sul reddito": 0.9,
+            "imposta di registro": 0.7,
+            "imposta di bollo": 0.7,
+            "imposta di successione": 0.7,
+            "imposta ipotecaria": 0.7,
+            "imposta catastale": 0.7,
+            "imposta di donazione": 0.7,
+            "imposta di trascrizione": 0.7,
+            "imposta di registro": 0.7,
+            "imposta di bollo": 0.7,
+            "imposta di successione": 0.7,
+            "imposta ipotecaria": 0.7,
+            "imposta catastale": 0.7,
+            "imposta di donazione": 0.7,
+            "imposta di trascrizione": 0.7,
         }
     
-    def load_model(self) -> None:
-        """Load the FastText model from the specified path."""
+    def load_model(self):
+        """Load the FastText model."""
         try:
             import fasttext
-            print(f"Checking for model at: {self.model_path}")
-            if os.path.exists(self.model_path):
-                print("Model file found, loading...")
-                self.model = fasttext.load_model(self.model_path)
-                # Test the model with multiple examples
-                test_texts = [
-                    "Come funziona l'IVA?",
-                    "Come funziona l'IVA per un libero professionista?",
-                    "Quanto costa aprire un'attività?",
-                    "Che tempo farà domani?"
-                ]
-                for text in test_texts:
-                    predictions = self.model.predict(text, k=-1)
-                    print(f"Model test prediction for '{text}': {predictions}")
-                logging.info(f"Successfully loaded FastText model from {self.model_path}")
-            else:
-                print(f"❌ Model file not found at {self.model_path}")
-                print("Current working directory:", os.getcwd())
-                print("Directory contents:", os.listdir(os.path.dirname(self.model_path)))
-                logging.warning(f"Model file not found at {self.model_path}")
-                self.model = None
-        except ImportError as e:
-            print(f"❌ Error importing fasttext: {e}")
-            logging.error(f"Error importing fasttext: {e}")
-            self.model = None
+            logger.info(f"Checking for model at: {self.model_path}")
+            logger.info(f"Current working directory: {os.getcwd()}")
+            
+            # Try to find the model file
+            if not os.path.exists(self.model_path):
+                # Try relative path
+                rel_path = os.path.join(os.getcwd(), self.model_path)
+                if os.path.exists(rel_path):
+                    self.model_path = rel_path
+                else:
+                    # Try absolute path
+                    abs_path = os.path.join("/app", self.model_path)
+                    if os.path.exists(abs_path):
+                        self.model_path = abs_path
+                    else:
+                        logger.error(f"❌ Model file not found at {self.model_path}")
+                        logger.error(f"Current working directory: {os.getcwd()}")
+                        return
+            
+            logger.info(f"Loading model from: {self.model_path}")
+            self.model = fasttext.load_model(self.model_path)
+            logger.info("✅ Model loaded successfully")
+            
+            # Test the model
+            test_text = "Come funziona l'IVA?"
+            prediction = self.model.predict(test_text)
+            logger.info(f"Model test prediction for '{test_text}': {prediction}")
+            
         except Exception as e:
-            print(f"❌ Error loading FastText model: {e}")
-            logging.error(f"Error loading FastText model: {e}")
+            logger.error(f"❌ Error loading FastText model: {e}")
             self.model = None
     
     def _preprocess_text(self, text: str) -> str:

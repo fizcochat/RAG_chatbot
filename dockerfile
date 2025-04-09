@@ -1,21 +1,15 @@
-FROM python:3.11-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
-    python3-dev \
-    gcc \
-    g++ \
-    cmake \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first to leverage Docker cache
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir streamlit
 
 # Create necessary directories
 RUN mkdir -p /app/fast_text/models \
@@ -24,17 +18,21 @@ RUN mkdir -p /app/fast_text/models \
     /app/argilla_data_49 \
     /app/argilla-data
 
-# Copy the rest of the application
+# Create training data and train model
+COPY create_model.py .
+RUN python create_model.py
+
+# Set permissions
+RUN chmod -R 755 /app/fast_text/models
+
+# Copy application code
 COPY . .
 
-# Create a proper FastText model file
-RUN echo "__label__IVA Come funziona l'IVA?" > /app/fast_text/models/tax_classifier.txt && \
-    echo "__label__Other Che tempo fa?" >> /app/fast_text/models/tax_classifier.txt && \
-    python -c "import fasttext; model = fasttext.train_supervised('/app/fast_text/models/tax_classifier.txt'); model.save_model('/app/fast_text/models/tax_classifier.bin')"
+# Verify model file exists and has correct permissions
+RUN ls -la /app/fast_text/models/tax_classifier.bin
 
-# Verify the model file exists
-RUN ls -la /app/fast_text/models/
+# Set environment variables
+ENV PYTHONPATH=/app
 
-EXPOSE 8501
-
-CMD ["streamlit", "run", "main.py", "--server.address", "0.0.0.0", "--server.enableCORS", "false", "--server.enableXsrfProtection", "false"]
+# Run tests
+CMD ["pytest", "tests/"]
