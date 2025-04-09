@@ -168,7 +168,12 @@ class FastTextRelevanceChecker:
             # If we have a strong context (previous tax-related question)
             # and this is a short follow-up question, boost the score
             if len(words) <= 4 and context_score >= 0.7:
-                max_score = max(max_score, context_score * 0.8)
+                # For follow-up questions, use the context score as a base
+                # and add a boost for tax-related keywords
+                base_score = context_score * 0.8
+                # Add a boost for tax-related keywords in the follow-up
+                keyword_boost = 0.3 if any(word in self.tax_keywords for word in words) else 0.0
+                max_score = max(max_score, base_score + keyword_boost)
                 found_keywords.add("context_boost")
         
         return max_score, found_keywords, found_phrases
