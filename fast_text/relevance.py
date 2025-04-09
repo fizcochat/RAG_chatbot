@@ -133,7 +133,7 @@ class FastTextRelevanceChecker:
         
         return text
     
-    def _calculate_keyword_score(self, text: str) -> Tuple[float, Set[str], Set[str]]:
+    def _calculate_keyword_score(self, text: str, context_score: float = 0.0) -> Tuple[float, Set[str], Set[str]]:
         """Calculate relevance score based on keywords and phrases."""
         if not text:
             return 0.0, set(), set()
@@ -163,6 +163,14 @@ class FastTextRelevanceChecker:
                 max_score = max(max_score, 0.6)
                 found_keywords.add(f"{word} (0.6)")
         
+        # Boost score for follow-up questions based on context
+        if context_score > 0:
+            # If we have a strong context (previous tax-related question)
+            # and this is a short follow-up question, boost the score
+            if len(words) <= 4 and context_score >= 0.7:
+                max_score = max(max_score, context_score * 0.8)
+                found_keywords.add("context_boost")
+        
         return max_score, found_keywords, found_phrases
     
     def is_relevant(self, text: str, threshold: float = 0.6) -> Tuple[bool, dict]:
@@ -188,22 +196,8 @@ class FastTextRelevanceChecker:
         # Preprocess the text
         processed_text = self._preprocess_text(text)
         
-        # Calculate keyword-based score
-        keyword_score, found_keywords, found_phrases = self._calculate_keyword_score(processed_text)
-        
-        # Initialize result details
-        details = {
-            'preprocessed_text': processed_text,
-            'keyword_score': keyword_score,
-            'keywords_found': found_keywords,
-            'phrases_found': found_phrases,
-            'context_relevance': False
-        }
-        
-        # Store the query in conversation history for testing
-        self._conversation_history.append(text)
-        
-        # Check conversation context
+        # Calculate context score from previous messages
+        context_score = 0.0
         if len(self._conversation_history) > 1:
             # Get the last few messages for context
             context_window = 3  # Look at last 3 exchanges
@@ -212,43 +206,27 @@ class FastTextRelevanceChecker:
             
             # Calculate context relevance from recent messages
             context_scores = []
-            context_keywords = set()
             for msg in recent_context:
-                score, keywords, phrases = self._calculate_keyword_score(self._preprocess_text(msg))
-                if score >= 0.6:  # If any recent message was tax-related
-                    context_scores.append(score)
-                    context_keywords.update(keywords)
+                score, _, _ = self._calculate_keyword_score(self._preprocess_text(msg))
+                context_scores.append(score)
             
             # Get the highest context score
-            max_context_score = max(context_scores) if context_scores else 0
-            
-            # Check if this is a follow-up question
-            is_followup = False
-            
-            # 1. Check for short queries with question words
-            question_words = {'come', 'quanto', 'quali', 'dove', 'quando', 'perché', 'chi', 'cosa', 'e', 'ma', 'per'}
-            words = set(processed_text.split())
-            if words.intersection(question_words) and len(words) <= 6:
-                is_followup = True
-            
-            # 2. Check for queries starting with conjunctions
-            conjunctions = {'e', 'ma', 'però', 'oppure', 'invece'}
-            first_word = processed_text.split()[0] if processed_text else ''
-            if first_word in conjunctions:
-                is_followup = True
-            
-            # 3. Check for incomplete sentences that rely on context
-            if len(words) <= 4 and not any(word in self.tax_keywords for word in words):
-                is_followup = True
-            
-            # If this is a follow-up and we have relevant context, consider it relevant
-            if is_followup and max_context_score >= 0.6:
-                details['context_relevance'] = True
-                details['context_score'] = max_context_score
-                details['context_keywords'] = context_keywords
-                # Boost keyword score for follow-up questions
-                details['keyword_score'] = max(keyword_score, max_context_score * 0.8)
-                return True, details
+            context_score = max(context_scores) if context_scores else 0
+        
+        # Calculate keyword-based score with context
+        keyword_score, found_keywords, found_phrases = self._calculate_keyword_score(processed_text, context_score)
+        
+        # Initialize result details
+        details = {
+            'preprocessed_text': processed_text,
+            'keyword_score': keyword_score,
+            'keywords_found': found_keywords,
+            'phrases_found': found_phrases,
+            'context_relevance': context_score > 0
+        }
+        
+        # Store the query in conversation history
+        self._conversation_history.append(text)
         
         # If we have a strong keyword match, consider it relevant
         if keyword_score >= 0.7 or 'iva' in processed_text or \
