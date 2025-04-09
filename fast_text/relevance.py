@@ -173,7 +173,9 @@ class FastTextRelevanceChecker:
                 base_score = context_score * 0.8
                 # Add a boost for tax-related keywords in the follow-up
                 keyword_boost = 0.3 if any(word in self.tax_keywords for word in words) else 0.0
-                max_score = max(max_score, base_score + keyword_boost)
+                # Add a boost for tax-related phrases in the follow-up
+                phrase_boost = 0.3 if any(phrase in text for phrase in self.tax_phrases) else 0.0
+                max_score = max(max_score, base_score + keyword_boost + phrase_boost)
                 found_keywords.add("context_boost")
         
         return max_score, found_keywords, found_phrases
@@ -227,7 +229,8 @@ class FastTextRelevanceChecker:
             'keyword_score': keyword_score,
             'keywords_found': found_keywords,
             'phrases_found': found_phrases,
-            'context_relevance': context_score > 0
+            'context_relevance': context_score > 0,
+            'context_score': context_score
         }
         
         # Store the query in conversation history
