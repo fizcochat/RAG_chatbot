@@ -13,31 +13,58 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
-    
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
     - name: Set up Python 3.11
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: "3.11"
     
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install pytest pytest-cov flake8
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Install the package in editable mode
+        pip install -e .
     
     - name: Set environment variables
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-      run: echo "Environment variables OPENAI_API_KEY and PINECONE_API_KEY are set"
+      run: |
+        echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> $GITHUB_ENV
+        echo "PINECONE_API_KEY=$PINECONE_API_KEY" >> $GITHUB_ENV
 
     - name: Run tests with coverage
+      run: |
+        # Create test data directories if they don't exist
+        mkdir -p fast_text/models
+        mkdir -p data_documents
+        mkdir -p dtaa-documents
+        mkdir -p argilla_data_49
+        mkdir -p argilla-data
+        
+        # Create a dummy model file for testing
+        echo "dummy model" > fast_text/models/tax_classifier.bin
+        
+        # List test files for debugging
+        echo "Test files found:"
+        find . -name "test_*.py" -o -name "*_test.py"
+        
+        # Run tests with coverage and detailed output
+        python -m pytest \
+          --verbose \
+          --cov=fast_text \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          -v fast_text/test_relevance.py
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-      run: |
-        pytest --cov=./ --cov-report=xml
+        PYTHONPATH: ${{ github.workspace }}
+        PYTEST_ADDOPTS: "--color=yes"
 
   build-and-push:
     needs: test

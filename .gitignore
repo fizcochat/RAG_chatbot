@@ -8,3 +8,6 @@ __pycache__
 # Docker
 .docker/
 docker-compose.override.yml
+
+# FastText model files
+fast_text/models/*.bin
