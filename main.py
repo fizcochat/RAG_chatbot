@@ -12,6 +12,10 @@ from langchain.prompts import (
     MessagesPlaceholder
 )
 
+import dotenv
+
+dotenv.load_dotenv()
+
 # Add custom CSS
 st.markdown("""
 <style>
