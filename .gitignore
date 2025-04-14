@@ -8,3 +8,7 @@ __pycache__
 # Docker
 .docker/
 docker-compose.override.yml
+
+# Keep data_documents folder but ignore its contents
+data_documents/*
+!data_documents/.gitkeep
