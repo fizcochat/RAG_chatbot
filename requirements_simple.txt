@@ -1,0 +1,11 @@
+langchain
+langchain-community
+langchain-openai
+langchain-pinecone
+openai
+pinecone
+streamlit
+streamlit-chat
+python-dotenv
+pytest
+pytest-cov 
