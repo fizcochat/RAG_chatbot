@@ -69,9 +69,7 @@ def setup_environment():
     # Create required directories
     os.makedirs("fasttext/models", exist_ok=True)
     os.makedirs("data_documents", exist_ok=True)
-    os.makedirs("dtaa-documents", exist_ok=True)
     os.makedirs("argilla_data_49", exist_ok=True)
-    os.makedirs("argilla-data", exist_ok=True)
     print("✅ Created required directories")
     
     # Create .env file if it doesn't exist
