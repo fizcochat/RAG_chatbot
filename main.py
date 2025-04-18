@@ -67,7 +67,6 @@ def setup_environment():
         sys.path.insert(0, project_root)
     
     # Create required directories
-    os.makedirs("fasttext/models", exist_ok=True)
     os.makedirs("data_documents", exist_ok=True)
     os.makedirs("argilla_data_49", exist_ok=True)
     print("✅ Created required directories")
