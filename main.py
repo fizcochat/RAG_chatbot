@@ -1,4 +1,5 @@
 from fast_text.relevance import FastTextRelevanceChecker
+from app import process_query
 
 """
 Fiscozen Tax Chatbot - Main Application
@@ -242,6 +243,10 @@ def launch_chatbot():
         
         # Set headless mode for server
         os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
+        
+        # Set custom environment variables to control UI elements
+        os.environ["FISCOZEN_HIDE_DEMO_WARNING"] = "true"
+        os.environ["FISCOZEN_HIDE_AVATARS"] = "true"
         
         # Launch Streamlit with specific port and app file
         subprocess.Popen([
