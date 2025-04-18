@@ -208,7 +208,7 @@ def train_fasttext_model(training_data: List[Tuple[str, str]], output_path: str)
         import fasttext
         
         # Create temporary file for training data
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(mode='w+', encoding='utf-8', delete=False) as temp_file:
             for text, label in training_data:
                 # FastText expects format: __label__LABEL text
                 temp_file.write(f"__label__{label} {text}\n")

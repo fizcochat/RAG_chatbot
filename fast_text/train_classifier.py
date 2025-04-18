@@ -87,7 +87,7 @@ except ImportError:
                     try:
                         # Create a temporary file for training data
                         import tempfile
-                        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+                        with tempfile.NamedTemporaryFile(mode='w+', encoding='utf-8', delete=False) as temp_file:
                             for text, label in training_data:
                                 # FastText expects format: __label__LABEL text
                                 temp_file.write(f"__label__{label} {text}\n")
