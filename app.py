@@ -109,15 +109,6 @@ except Exception as e:
     fiscozen_logo_base64 = ""
     fiscozen_small_base64 = ""
 
-# Add minimalist CSS to hide profile images
-st.markdown("""
-<style>
-img[alt="profile"] {
-    display: none !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # Logo only, no title, larger and centered
 st.image("images/fiscozen_logo.jpeg", width=200)
 
@@ -152,7 +143,7 @@ for i, message_obj in enumerate(st.session_state.chat_history):
         message_obj["message"],
         is_user=message_obj["is_user"],
         key=message_obj["key"],
-        avatar_style="none"  # This disables the avatar
+        avatar_style="no-avatar"  # This disables the avatar
     )
 
 # Show typing indicator during processing
