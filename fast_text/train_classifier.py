@@ -55,20 +55,20 @@ except ImportError:
             
             # Check and install fasttext if needed
             try:
-                import fast_text
+                import fasttext
                 print("FastText is already installed.")
             except ImportError:
                 print("Installing fasttext package...")
                 import subprocess
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "fasttext"])
-                import fast_text
+                import fasttext
                 print("FastText installed successfully.")
             
             print("Error: Still cannot find FastTextRelevanceChecker.")
             print("Creating a simplified version for training...")
             
             # Create a simplified version of the FastTextRelevanceChecker for training
-            import fast_text
+            import fasttext
             
             class SimplifiedFastTextRelevanceChecker:
                 def __init__(self, model_path=None):
@@ -95,7 +95,7 @@ except ImportError:
                         
                         # Train the model
                         print(f"Training FastText model with {len(training_data)} examples...")
-                        self.model = fast_text.train_supervised(
+                        self.model = fasttext.train_supervised(
                             input=temp_file_path,
                             epoch=epochs,
                             lr=lr,
