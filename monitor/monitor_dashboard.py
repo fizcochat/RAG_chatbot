@@ -20,17 +20,17 @@ st_autorefresh(interval=5000, limit=None, key="refresh")
 
 st.title("Fiscozen Chatbot Monitoring Dashboard")
 
-# --- Load logs from database ---
+# Load logs from database
 rows = get_all_logs()
 if not rows:
     st.warning("⚠️ No log data found in the database.")
     st.stop()
 
-# --- Convert to DataFrame ---
+# Convert to DataFrame
 df = pd.DataFrame(rows, columns=["id", "timestamp", "event", "query", "response", "feedback", "response_time"])
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-# --- Metrics ---
+# Metrics
 st.subheader("📌 Key Metrics")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("✅ Answered", df[df.event == "answered"].shape[0])
@@ -38,7 +38,7 @@ col2.metric("❌ Out of Scope", df[df.event == "out_of_scope"].shape[0])
 col3.metric("👍 Positive Feedback", df[df.feedback == "👍"].shape[0])
 col4.metric("👎 Negative Feedback", df[df.feedback == "👎"].shape[0])
 
-# --- Charts ---
+# Charts
 st.markdown("---")
 st.subheader("📉 Trends Over Time")
 
@@ -96,7 +96,7 @@ if not df.empty:
 else:
     st.info("No timestamped data available for time-series charts.")
 
-# --- Raw Data Explorer ---
+# Raw Data Explorer
 st.markdown("---")
 st.subheader("📄 Explore Log Records")
 st.dataframe(df.sort_values("timestamp", ascending=False), use_container_width=True)
@@ -105,7 +105,7 @@ st.dataframe(df.sort_values("timestamp", ascending=False), use_container_width=T
 rows = get_all_logs()
 df = pd.DataFrame(rows, columns=["id", "timestamp", "event", "query", "response", "feedback", "response_time"])
 
-# --- Download Logs as CSV ---
+# Download Logs as CSV
 st.markdown("### 📥 Download Logs")
 csv_buffer = StringIO()
 df.to_csv(csv_buffer, index=False)
