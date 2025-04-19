@@ -14,6 +14,7 @@ venv-rag/
 
 # Logs (SQLite DB or old log files)
 monitor/logs/logs.db
+!monitor/logs/.gitkeep
 
 # Docker
 .docker/
