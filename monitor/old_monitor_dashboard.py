@@ -5,11 +5,11 @@ import altair as alt
 import sys
 import os
 sys.path.append(os.path.abspath("."))
-from monitor.db_logger import get_all_logs
 from streamlit_autorefresh import st_autorefresh
-from monitor.db_logger import get_all_logs, export_logs_to_csv
+from monitor.db_logger import init_db, get_all_logs, export_logs_to_csv
 from io import StringIO
 
+init_db() 
 st.set_page_config(
     page_title="Chatbot Monitoring Dashboard",
     layout="wide",

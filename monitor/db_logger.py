@@ -3,26 +3,17 @@ from datetime import datetime
 import pandas as pd
 import os
 
-DB_DIR = "monitor/logs"
-DB_PATH = os.path.abspath("monitor/logs/logs.db")
-
-import os
-import sqlite3
-
-DB_DIR = "monitor/logs"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_DIR = os.path.join(BASE_DIR, "logs")
 DB_PATH = os.path.join(DB_DIR, "logs.db")
 
 def init_db():
     try:
-        print("📁 Ensuring DB directory exists...")
         os.makedirs(DB_DIR, exist_ok=True)
-        print(f"✅ Directory check done: {DB_DIR}")
     except Exception as e:
-        print(f"❌ Failed to create DB directory: {e}")
+        print(f"Failed to create DB directory: {e}")
         raise
-
     try:
-        print(f"📦 Creating DB (if not exists): {DB_PATH}")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
@@ -38,9 +29,8 @@ def init_db():
         ''')
         conn.commit()
         conn.close()
-        print("✅ DB created and ready.")
     except Exception as e:
-        print(f"❌ Failed to initialize database: {e}")
+        print(f"Failed to initialize database: {e}")
         raise
 
 
