@@ -26,6 +26,60 @@ def initialize_services(openai_api_key, pinecone_api_key):
 
     return vectorstore, client
 
+def translate_to_italian(text, client=None):
+    """Translate text from English to Italian using OpenAI."""
+    if not text:
+        return ""
+        
+    try:
+        # Get OpenAI client from session state if not provided
+        if client is None:
+            if 'openai_client' not in st.session_state:
+                raise ValueError("OpenAI client not initialized")
+            client = st.session_state['openai_client']
+        
+        # Use OpenAI to translate
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a professional translator. Translate the following text from English to Italian, maintaining the same tone and style. Only return the translated text without any additional commentary."},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.3
+        )
+        
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Translation error (to Italian): {e}")
+        return text  # Return original text if translation fails
+
+def translate_from_italian(text, client=None):
+    """Translate text from Italian to English using OpenAI."""
+    if not text:
+        return ""
+        
+    try:
+        # Get OpenAI client from session state if not provided
+        if client is None:
+            if 'openai_client' not in st.session_state:
+                raise ValueError("OpenAI client not initialized")
+            client = st.session_state['openai_client']
+        
+        # Use OpenAI to translate
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a professional translator. Translate the following text from Italian to English, maintaining the same tone and style. Only return the translated text without any additional commentary."},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.3
+        )
+        
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Translation error (from Italian): {e}")
+        return text  # Return original text if translation fails
+
 def find_match(query, k=2):
     """Find similar documents in the vector store and format them into a readable response"""
     try:
