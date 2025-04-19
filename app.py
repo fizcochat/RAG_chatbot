@@ -6,7 +6,7 @@ import os
 import streamlit as st
 from streamlit_chat import message
 from fast_text.relevance import FastTextRelevanceChecker
-from utils import initialize_services, find_match, query_refiner, get_conversation_string
+from utils import initialize_services, find_match, query_refiner, get_conversation_string, translate_to_italian, translate_from_italian
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import HumanMessage, AIMessage
@@ -41,7 +41,10 @@ if not OPENAI_API_KEY or not PINECONE_API_KEY:
 # Initialize database
 init_db()
 
-train_fasttext_if_needed()
+# Only train FastText model if needed, and only once when app starts
+if 'fasttext_trained' not in st.session_state:
+    train_fasttext_if_needed()
+    st.session_state['fasttext_trained'] = True
 
 # Initialize services
 try:
@@ -57,7 +60,7 @@ try:
     
     # Initialize LLM
     if 'llm' not in st.session_state:
-        st.session_state['llm'] = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
+        st.session_state['llm'] = ChatOpenAI(model_name="gpt-4", openai_api_key=OPENAI_API_KEY)
     
     # Initialize conversation memory
     if 'memory' not in st.session_state:
@@ -74,30 +77,47 @@ except Exception as e:
 try:
     if 'relevance_checker' not in st.session_state:
         st.session_state['relevance_checker'] = FastTextRelevanceChecker()
+        print("FastText relevance checker initialized and stored in session state")
 except Exception as e:
     st.error(f"Error initializing relevance checker: {e}")
     st.stop()
 
 # Function to process a query and get a response
-def process_query(query):
+def process_query(query, language="it"):
     try:
+        # Translate the query to Italian if the user is using English
+        original_query = query
+        if language == "en":
+            query = translate_to_italian(query)
+            print(f"Translated query: {query}")
+        
         # Check relevance
         is_relevant, details = st.session_state['relevance_checker'].is_relevant(query)
         
         if not is_relevant:
-            log_event("out_of_scope", query=query)
-            return "Mi dispiace, ma posso rispondere solo a domande relative a tasse, IVA e questioni fiscali. Posso aiutarti con domande su questi argomenti?"
+            log_event("out_of_scope", query=original_query)
+            
+            if language == "it":
+                response = "Mi dispiace, ma posso rispondere solo a domande relative a tasse, IVA e questioni fiscali. Posso aiutarti con domande su questi argomenti?"
+            else:  # English
+                response = "I'm sorry, but I can only answer questions about taxes, VAT, and fiscal matters. Can I help you with questions on these topics?"
         else:
             # Process relevant query
             conversation_string = get_conversation_string()
             refined_query = query_refiner(conversation_string, query)
-            response = find_match(refined_query)
+            italian_response = find_match(refined_query)
             
-            log_event("answered", query=query, response=response)
-
-            # Update conversation memory
+            log_event("answered", query=original_query, response=italian_response)
+            
+            # Translate the response if the user is using English
+            if language == "en":
+                response = translate_from_italian(italian_response)
+            else:
+                response = italian_response
+            
+            # Update conversation memory (store in original language)
             st.session_state['memory'].save_context(
-                {"input": query},
+                {"input": original_query},
                 {"answer": response}
             )
             
@@ -105,7 +125,11 @@ def process_query(query):
     except Exception as e:
         logging.error(f"ERROR | Query: {query} | Exception: {str(e)}")
         st.error(f"Error processing query: {e}")
-        return "Mi dispiace, si è verificato un errore. Per favore, riprova."
+        
+        if language == "it":
+            return "Mi dispiace, si è verificato un errore. Per favore, riprova."
+        else:  # English
+            return "I'm sorry, an error occurred. Please try again."
 
 # Page config
 st.set_page_config(
@@ -114,6 +138,9 @@ st.set_page_config(
     layout="centered"
 )
 
+# Initialize language selection in session state
+if 'language' not in st.session_state:
+    st.session_state.language = "it"  # Default to Italian
 
 query_params = st.query_params
 page = query_params.get("page", "chat")  # Default to "chat" if not set
@@ -212,7 +239,6 @@ if page == "monitor":
     df.to_csv(csv_buffer, index=False)
     st.download_button("📥 Scarica log CSV", data=csv_buffer.getvalue(), file_name="fiscozen_chatbot_logs.csv", mime="text/csv")
 
-
 else:
     # Initialize session state for chat
     if 'chat_history' not in st.session_state:
@@ -230,25 +256,110 @@ else:
         fiscozen_logo_base64 = ""
         fiscozen_small_base64 = ""
 
+    # Add minimalist CSS to hide profile images
+    st.markdown("""
+    <style>
+    img[alt="profile"] {
+        display: none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Sidebar for language selection
+    with st.sidebar:
+        st.image("images/fiscozen_small.png", width=50)
+        st.title("Settings")
+        
+        # Language selector
+        selected_language = st.selectbox(
+            "Language / Lingua",
+            options=["Italian / Italiano", "English / Inglese"],
+            index=0 if st.session_state.language == "it" else 1
+        )
+        
+        # Update language in session state
+        if selected_language == "Italian / Italiano" and st.session_state.language != "it":
+            st.session_state.language = "it"
+            st.rerun()
+        elif selected_language == "English / Inglese" and st.session_state.language != "en":
+            st.session_state.language = "en"
+            st.rerun()
+        
+        st.divider()
+        
+        # Add information about the chatbot
+        if st.session_state.language == "it":
+            st.write("**Informazioni**")
+            st.write("Questo assistente risponde a domande su tasse, IVA e questioni fiscali in Italia.")
+        else:
+            st.write("**Information**")
+            st.write("This assistant answers questions about taxes, VAT, and fiscal matters in Italy.")
+
     # Logo only, no title, larger and centered
     st.image("images/fiscozen_logo.jpeg", width=200)
 
-    # Welcome Section
-    st.markdown("""
-    ### Benvenuto nel Tax Assistant di Fiscozen!
-    Sono qui per aiutarti con le tue domande fiscali. Posso supportarti su:
-    """)
-
-    # List of features with checkmarks
-    st.markdown("""
-    - ✓ IVA e regime fiscale italiano
-    - ✓ Detrazioni e deduzioni fiscali
-    - ✓ Dichiarazione dei redditi
-    - ✓ Servizi offerti da Fiscozen
-    """)
+    # Welcome Section - change text based on language
+    if st.session_state.language == "it":
+        st.markdown("""
+        ### Benvenuto nel Tax Assistant di Fiscozen!
+        Sono qui per aiutarti con le tue domande fiscali. Posso supportarti su:
+        """)
+        
+        # List of features with checkmarks in Italian
+        st.markdown("""
+        - ✓ IVA e regime fiscale italiano
+        - ✓ Detrazioni e deduzioni fiscali
+        - ✓ Dichiarazione dei redditi
+        - ✓ Servizi offerti da Fiscozen
+        """)
+        
+        # Restart button text in Italian
+        restart_label = "↻ Ricomincia"
+        
+        # Input placeholder in Italian
+        input_placeholder = "Chiedimi qualcosa sul fisco italiano..."
+        
+        # Suggested questions in Italian
+        suggested_questions = [
+            "Come funziona l'IVA per i liberi professionisti?",
+            "Quali detrazioni fiscali posso avere per i figli?",
+            "Come gestire le fatture elettroniche?",
+            "Cosa offre Fiscozen?"
+        ]
+        
+        suggested_title = "Domande Frequenti:"
+    else:
+        st.markdown("""
+        ### Welcome to Fiscozen's Tax Assistant!
+        I'm here to help you with your tax questions. I can support you on:
+        """)
+        
+        # List of features with checkmarks in English
+        st.markdown("""
+        - ✓ Italian VAT and tax regime
+        - ✓ Tax deductions and allowances
+        - ✓ Income tax declarations
+        - ✓ Services offered by Fiscozen
+        """)
+        
+        # Restart button text in English
+        restart_label = "↻ Restart"
+        
+        # Input placeholder in English
+        input_placeholder = "Ask me something about Italian taxation..."
+        
+        # Suggested questions in English
+        suggested_questions = [
+            "How does VAT work for freelancers?",
+            "What tax deductions can I get for children?",
+            "How to manage electronic invoices?",
+            "What does Fiscozen offer?"
+        ]
+        
+        suggested_title = "Frequently Asked Questions:"
 
     # Restart button at the top
-    restart_clicked = st.button("↻ Ricomincia")
+    restart_clicked = st.button(restart_label)
     if restart_clicked:
         st.session_state.chat_history = []
         if 'memory' in st.session_state:
@@ -276,7 +387,7 @@ else:
         if last_bot_msg:
             feedback_key = f"feedback_{last_bot_msg['key']}"
             feedback = st.radio(
-                "Ti è stata utile questa risposta?",
+                "Ti è stata utile questa risposta?" if st.session_state.language == "it" else "Was this response helpful?",
                 ["👍", "👎"],
                 index=None,
                 key=feedback_key,
@@ -293,22 +404,17 @@ else:
                     "feedback": feedback
                 }
 
-
     # Show typing indicator during processing
     if st.session_state.processing:
-        st.write("Processing...")
+        if st.session_state.language == "it":
+            st.write("Elaborazione in corso...")
+        else:
+            st.write("Processing...")
 
     # Suggested questions (only show if chat is empty)
     if not st.session_state.chat_history:
-        st.subheader("Domande Frequenti:")
+        st.subheader(suggested_title)
         col1, col2 = st.columns(2)
-        
-        suggested_questions = [
-            "Come funziona l'IVA per i liberi professionisti?",
-            "Quali detrazioni fiscali posso avere per i figli?",
-            "Come gestire le fatture elettroniche?",
-            "Cosa offre Fiscozen?"
-        ]
         
         for i, question in enumerate(suggested_questions):
             col = col1 if i < 2 else col2
@@ -323,9 +429,8 @@ else:
                 st.rerun()
 
     # Input field for user queries
-    user_input = st.chat_input("Chiedimi qualcosa sul fisco italiano...")
+    user_input = st.chat_input(input_placeholder)
 
-    # Process user input
     # Process user input (with pending feedback handling)
     if user_input and not st.session_state.processing:
         # If there's pending feedback, log it now
@@ -343,14 +448,13 @@ else:
         st.session_state.processing = True
         st.rerun()
 
-
     # Process the response
     if st.session_state.processing:
         last_user_message = next((msg["message"] for msg in reversed(st.session_state.chat_history) if msg["is_user"]), None)
         
         if last_user_message:        
             start_time = time.time()
-            response = process_query(last_user_message)
+            response = process_query(last_user_message, st.session_state.language)
 
             # Log performance metrics
             duration = time.time() - start_time

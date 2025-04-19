@@ -12,13 +12,18 @@ from typing import List, Tuple, Optional, Set, Dict
 import streamlit as st
 import fasttext
 
+# Global model instance
+_FASTTEXT_MODEL = None
+_FASTTEXT_MODEL_PATH = None
+
 class FastTextRelevanceChecker:
     """Checks if text is relevant to tax/IVA topics using FastText classifier."""
     
     def __init__(self, model_path: str = None):
         """Initialize the relevance checker with a FastText model."""
+        global _FASTTEXT_MODEL, _FASTTEXT_MODEL_PATH
+        
         self.model_path = model_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'tax_classifier.bin')
-        self.model = None
         self.relevant_labels = {"IVA"}
         self._conversation_history = []  # Store conversation history for testing
         
@@ -89,13 +94,20 @@ class FastTextRelevanceChecker:
         
         # Try to load the model, but don't fail if it's not available
         try:
-            self._load_model()
+            # Check if model is already loaded globally
+            if _FASTTEXT_MODEL is not None and _FASTTEXT_MODEL_PATH == self.model_path:
+                self.model = _FASTTEXT_MODEL
+                print("Using already loaded FastText model")
+            else:
+                self._load_model()
         except Exception as e:
             print(f"Warning: Could not load FastText model: {str(e)}")
             print("Continuing with keyword-based relevance checking only")
     
     def _load_model(self):
         """Load the FastText model with improved error handling and logging."""
+        global _FASTTEXT_MODEL, _FASTTEXT_MODEL_PATH
+        
         try:
             print(f"Attempting to load model from: {self.model_path}")
             if not os.path.exists(self.model_path):
@@ -106,6 +118,11 @@ class FastTextRelevanceChecker:
             
             print("Model file found, loading...")
             self.model = fasttext.load_model(self.model_path)
+            
+            # Store model in global variable
+            _FASTTEXT_MODEL = self.model
+            _FASTTEXT_MODEL_PATH = self.model_path
+            
             print("Model loaded successfully")
             
             # Test the model

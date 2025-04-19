@@ -27,6 +27,60 @@ def initialize_services(openai_api_key, pinecone_api_key):
 
     return vectorstore, client
 
+def translate_to_italian(text, client=None):
+    """Translate text from English to Italian using OpenAI."""
+    if not text:
+        return ""
+        
+    try:
+        # Get OpenAI client from session state if not provided
+        if client is None:
+            if 'openai_client' not in st.session_state:
+                raise ValueError("OpenAI client not initialized")
+            client = st.session_state['openai_client']
+        
+        # Use OpenAI to translate
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a professional translator. Translate the following text from English to Italian, maintaining the same tone and style. Only return the translated text without any additional commentary."},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.3
+        )
+        
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Translation error (to Italian): {e}")
+        return text  # Return original text if translation fails
+
+def translate_from_italian(text, client=None):
+    """Translate text from Italian to English using OpenAI."""
+    if not text:
+        return ""
+        
+    try:
+        # Get OpenAI client from session state if not provided
+        if client is None:
+            if 'openai_client' not in st.session_state:
+                raise ValueError("OpenAI client not initialized")
+            client = st.session_state['openai_client']
+        
+        # Use OpenAI to translate
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a professional translator. Translate the following text from Italian to English, maintaining the same tone and style. Only return the translated text without any additional commentary."},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.3
+        )
+        
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Translation error (from Italian): {e}")
+        return text  # Return original text if translation fails
+
 def find_match(query, k=2):
     """Find similar documents in the vector store and format them into a readable response"""
     try:
@@ -59,7 +113,7 @@ def find_match(query, k=2):
         # Use GPT to generate a coherent response from the documents
         combined_content = "\n".join(contents)
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",  # Upgrade to GPT-4 to match new version
             messages=[
                 {"role": "system", "content": "You are a tax assistant for Fiscozen. Create a clear, concise response in Italian based on the provided information. Focus on answering the user's question directly and professionally. Do not mention that you're using any source documents."},
                 {"role": "user", "content": f"Query: {query}\n\nInformation:\n{combined_content}"}
@@ -96,10 +150,11 @@ def query_refiner(conversation, query):
             # Fallback to basic conversation string if memory not available
             history_str = conversation
         
-        # Create the prompt for query refinement
-        prompt = f"""Given the following conversation history and user query, formulate a question that would be most relevant to provide a helpful answer from our knowledge base about Italian taxes, IVA, and fiscal matters.
-
-CONVERSATION HISTORY:
+        # Create the system prompt for query refinement
+        system_prompt = """Given a conversation history and user query, formulate a question that would be most relevant to provide a helpful answer from our knowledge base about Italian taxes, IVA, and fiscal matters."""
+        
+        # Create the user prompt with conversation and query
+        user_prompt = f"""CONVERSATION HISTORY:
 {history_str}
 
 CURRENT QUERY: {query}
@@ -111,18 +166,18 @@ Please consider:
 
 REFINED QUERY:"""
         
-        # Get the refined query
-        response = client.completions.create(
-            model="gpt-3.5-turbo-instruct",
-            prompt=prompt,
+        # Use chat completions API instead of completions
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
             temperature=0.7,
-            max_tokens=256,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0
+            max_tokens=256
         )
         
-        refined_query = response.choices[0].text.strip()
+        refined_query = response.choices[0].message.content.strip()
         print(f"Original query: {query}")
         print(f"Refined query: {refined_query}")
         return refined_query
