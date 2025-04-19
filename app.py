@@ -15,6 +15,7 @@ import time
 import base64
 import logging
 from monitor.db_logger import init_db, log_event
+from fast_text.trainer import train_fasttext_if_needed 
 
 # Load environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -39,6 +40,8 @@ if not OPENAI_API_KEY or not PINECONE_API_KEY:
 
 # Initialize database
 init_db()
+
+train_fasttext_if_needed()
 
 # Initialize services
 try:
