@@ -1,9 +1,19 @@
-.env
+# Python cache
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+
+# Virtual environment
 env/
 venv/
 venv-rag/
-__pycache__
-.pytest_cache/
+
+# Environment variables
+.env
+
+# Logs (SQLite DB or old log files)
+monitor/logs/logs.db
 
 # Docker
 .docker/
@@ -11,3 +21,7 @@ docker-compose.override.yml
 
 # FastText model files
 fast_text/models/*.bin
+
+# Streamlit-specific
+.streamlit/config.toml
+
