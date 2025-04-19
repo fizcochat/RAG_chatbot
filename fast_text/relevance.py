@@ -34,7 +34,7 @@ class FastTextRelevanceChecker:
         global _FASTTEXT_MODEL, _FASTTEXT_MODEL_PATH, _FASTTEXT_AVAILABLE
         
         self.model_path = model_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'tax_classifier.bin')
-        self.relevant_labels = {"IVA"}
+        self.relevant_labels = {"Tax"}
         self._conversation_history = []  # Store conversation history for testing
         self.model = None
         

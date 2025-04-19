@@ -10,12 +10,22 @@ def train_fasttext_if_needed():
         return
     print("🚧 FastText model not found. Training...")
 
-    if not os.path.exists("fast_text/train_with_real_data.py"):
-        print("❌ Training script not found.")
-        return
-
-    try:
-        subprocess.check_call([sys.executable, "fast_text/train_with_real_data.py"])
-        print("✅ Training completed.")
-    except Exception as e:
-        print(f"❌ Failed to train FastText model: {e}")
+    # Use the improved training script
+    if os.path.exists("fast_text/train_improved_model.py"):
+        try:
+            print("📊 Using improved FastText training method...")
+            subprocess.check_call([sys.executable, "fast_text/train_improved_model.py"])
+            print("✅ Training completed successfully with improved method.")
+            return
+        except Exception as e:
+            print(f"⚠️ Improved training failed: {e}. Trying standard method...")
+    
+    # Fall back to the original training script if available
+    if os.path.exists("fast_text/train_with_real_data.py"):
+        try:
+            subprocess.check_call([sys.executable, "fast_text/train_with_real_data.py"])
+            print("✅ Training completed with standard method.")
+        except Exception as e:
+            print(f"❌ Failed to train FastText model: {e}")
+    else:
+        print("❌ Training scripts not found.")

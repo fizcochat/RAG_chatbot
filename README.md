@@ -13,6 +13,14 @@ FiscoChat is an intelligent chatbot designed to assist freelancers and sole prop
 - **Docker Support**: Easy deployment via containerization
 - **Cross-Platform Compatibility**: Works on macOS (Intel & Apple Silicon), Windows, and Linux
 
+## Features
+
+- **Document Processing Pipeline**: Extracts text from PDFs, processes/chunks, and stores in Pinecone
+- **Semantic Search**: Retrieves relevant document chunks based on natural language queries
+- **FastText Topic Filtering**: Ensures queries are relevant to Italian tax topics before processing
+- **Advanced Prompting**: Uses retrieval-augmented generation (RAG) with contextual information
+- **PDF Handling**: Views source documents and highlights relevant sections
+
 ## Architecture Overview
 
 FiscoChat employs a sophisticated architecture:
@@ -223,6 +231,24 @@ docker run -d -p 8501:8501 \
 - **Pinecone**: Vector database for document retrieval
 - **FastText**: ML model for topic classification
 - **Streamlit**: Web interface and dashboard
+
+### FastText Model for Tax Relevance
+
+The chatbot uses a fine-tuned FastText model to determine if a user query is tax-related:
+
+- Classifies text into "Tax" and "Other" categories
+- Trained on Italian tax documents, labeled conversations, and synthetic examples
+- Achieves ~99% accuracy on test data with 100% accuracy on tax-related queries
+- Helps filter out non-tax related queries to keep the chatbot focused on its domain expertise
+
+The model is automatically loaded (not retrained) when the application starts. If the model file doesn't exist, it will be trained once during the first run.
+
+To manually retrain the FastText model:
+```bash
+python run_fasttext_training.py --force
+```
+
+See `fast_text/README.md` for detailed information about the model and training process.
 
 ## Testing
 
