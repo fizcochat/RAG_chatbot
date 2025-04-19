@@ -1,150 +1,246 @@
-# Fisco-Chat
+# FiscoChat: AI-Powered Tax Assistant
 
-Fisco-Chat is an AI-powered chatbot designed to assist freelancers and sole proprietors in Italy with tax and VAT management, leveraging LangChain, OpenAI's LLM models, and FastText for topic relevance filtering.
+FiscoChat is an intelligent chatbot designed to assist freelancers and sole proprietors in Italy with tax and VAT-related questions. Built with advanced RAG (Retrieval-Augmented Generation) technology, it combines the power of GPT-4 with domain-specific knowledge to provide accurate, contextually relevant tax information.
 
-## Features
+## Key Features
 
-- **Multilingual Support**: Available in both Italian and English with seamless translation
-- **RAG Implementation**: Retrieves information from vector databases for accurate, context-aware responses
-- **FastText Topic Filtering**: Ensures responses stay focused on Italian tax-related topics
-- **GPT-4 Integration**: Leverages OpenAI's advanced LLMs for natural conversations
-- **Context Awareness**: Maintains chat history for coherent dialogue
-- **User-Friendly Interface**: Intuitive Streamlit-based UI with suggested questions
-- **Monitoring Dashboard**: Built with Streamlit and SQLite for tracking chatbot performance
+- **RAG Implementation**: Retrieves relevant tax information from a Pinecone vector database for accurate, knowledge-grounded responses
+- **Multilingual Support**: Seamlessly operates in both Italian and English with automatic translation
+- **FastText Topic Filtering**: Ensures queries are relevant to Italian tax topics before processing
+- **Conversation Memory**: Maintains chat history for coherent multi-turn dialogues
+- **Interactive UI**: Clean Streamlit interface with suggested questions and language selection
+- **Monitoring Dashboard**: Analytics dashboard to track chatbot performance and user feedback
+- **Docker Support**: Easy deployment via containerization
+- **Cross-Platform Compatibility**: Works on macOS (Intel & Apple Silicon), Windows, and Linux
 
-## Prerequisites
+## Architecture Overview
 
-Before running the project, ensure you have the following installed:
+FiscoChat employs a sophisticated architecture:
+
+1. **User Interface**: Streamlit-based interface with support for both Italian and English
+2. **Query Processing Pipeline**:
+   - Language detection and translation (if needed)
+   - FastText relevance check to ensure query is tax-related
+   - Context-aware query refinement using conversation history
+   - Document retrieval from Pinecone vector database
+   - Response generation with GPT-4
+   - Translation back to user's language (if needed)
+3. **Monitoring System**: SQLite-based logging and Streamlit dashboard for performance tracking
+
+## Getting Started
+
+### Prerequisites
 - Python 3.8+
-- pip (Python package manager)
+- OpenAI API key
+- Pinecone API key
 
-## Setup Instructions
+### Installation
 
-### 1. Clone the Repository
+#### Easy Installation (Cross-Platform)
+
+We provide a cross-platform installation script that handles all dependencies for your specific system:
+
 ```bash
-git clone <repository-url>
-cd <repository-folder>
+# Clone the repository
+git clone https://github.com/yourusername/fiscochat.git
+cd fiscochat
+
+# Run the easy installer
+python install_dependencies.py
+
+# Start the chatbot
+python run_fiscozen.py
 ```
 
-### 2. Create a Virtual Environment (Recommended)
-```bash
-python -m venv venv
-source venv/bin/activate  # On macOS/Linux
-venv\Scripts\activate    # On Windows
-```
+The installer will automatically detect your operating system and install the appropriate dependencies, including handling platform-specific requirements for FastText.
 
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+#### Manual Installation
 
-### 4. Set Up Environment Variables
-Create a `.env` file in the project root and add the following keys:
-```
-OPENAI_API_KEY=your_openai_api_key
-PINECONE_API_KEY=your_pinecone_api_key
-DASHBOARD_PASSWORD=your_dashboard_password
-```
-Replace with your actual API keys and chosen dashboard password.
+If you prefer to install dependencies manually:
 
-### 5. Run the Application
+1. **Set up environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On macOS/Linux
+   venv\Scripts\activate     # On Windows
+   ```
 
-You can run the application in two ways:
+2. **Install dependencies based on your platform**
 
-#### Option A: Using the Launch Script (Recommended)
+   **For macOS (Apple Silicon):**
+   ```bash
+   pip install -r requirements.txt
+   pip install fasttext  # Apple Silicon compatible version
+   ```
+
+   **For macOS (Intel):**
+   ```bash
+   pip install -r requirements.txt
+   pip install fasttext
+   ```
+
+   **For Windows:**
+   ```bash
+   pip install -r requirements.txt
+   # For Windows, you might need to install Visual C++ Build Tools first
+   # Visit https://visualstudio.microsoft.com/visual-cpp-build-tools/
+   pip install fasttext
+   ```
+
+   **For Linux:**
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install build-essential python3-dev
+   pip install -r requirements.txt
+   pip install fasttext
+   ```
+
+3. **Configure API keys**
+   Create a `.env` file in the project root:
+   ```
+   OPENAI_API_KEY=your_openai_api_key
+   PINECONE_API_KEY=your_pinecone_api_key
+   DASHBOARD_PASSWORD=your_dashboard_password
+   ```
+
+### Running the Application
+
+You can run FiscoChat in several ways:
+
+#### Option 1: Using the launcher script (recommended)
 ```bash
 python run_fiscozen.py
 ```
 
-#### Option B: Direct Streamlit Execution
+This script will automatically:
+- Check and install any missing dependencies
+- Handle platform-specific configurations
+- Start the Streamlit server with the correct settings
+
+#### Option 2: Directly with Streamlit
 ```bash
 streamlit run app.py
 ```
 
-The application will automatically:
-1. Check and install required dependencies
-2. Set up necessary directories
-3. Train or load the FastText model for topic filtering
-4. Launch the Streamlit interface
+The application will:
+- Install any missing dependencies
+- Train or load the FastText model (with fallback to keyword-based filtering if FastText isn't available)
+- Set up required directories
+- Launch the Streamlit interface at http://localhost:8501
 
-Once started, access the chatbot at http://localhost:8501/
+### Troubleshooting
 
-### 6. Open Monitoring Dashboard
-The project includes a real-time monitoring dashboard for tracking chatbot performance:
-- Tracks answered and out-of-scope queries
-- Collects user feedback
-- Measures response times
-- Provides insights on chatbot usage
+#### FastText Installation Issues
 
-To access the dashboard, either:
+If you encounter issues with FastText:
+
+**On macOS (Apple Silicon):**
+```bash
+pip install fasttext
+```
+
+If that doesn't work:
+```bash
+pip install fasttext-wheel --no-build-isolation
+```
+
+**On Windows:**
+FastText requires C++ build tools. If you encounter issues:
+1. Install Visual C++ Build Tools from Microsoft
+2. Or use the fallback keyword-based relevance filtering (automatic)
+
+**On Linux:**
+```bash
+# Ensure build tools are installed
+sudo apt-get install build-essential python3-dev  # Ubuntu/Debian
+sudo yum install gcc gcc-c++ python3-devel        # CentOS/RHEL
+```
+
+#### LangChain Installation Issues
+
+If you encounter issues with LangChain:
+```bash
+pip install langchain langchain-core langchain-openai
+```
+
+### Accessing the Monitoring Dashboard
+
+The monitoring dashboard provides insights into chatbot performance:
+- Query volume and types (answered vs. out-of-scope)
+- User feedback statistics
+- Response times
+- Detailed logs of all interactions
+
+To access:
 1. Add `?page=monitor` to the URL: http://localhost:8501/?page=monitor
-2. Or run it on a separate port:
-```bash
-streamlit run monitor/monitor_dashboard.py --server.port 8502
-```
+2. Enter the dashboard password configured in your `.env` file
 
-The dashboard is password-protected with the password specified in your `.env` file.
+## Updating Knowledge Base
 
-### 7. Access and Run the Private Docker Image
+To add new documents to the chatbot's knowledge:
 
-- Accept the Invitation to Access the Docker Image: Check your GitHub Notifications or email for an invitation to access the Fiscochat package. Click Accept Invitation to gain access.
-- Generate a GitHub Personal Access Token (PAT):
-  - Log in to GitHub.
-  - Click your profile picture → Settings.
-  - Go to Developer Settings → Personal Access Tokens → Fine-grained Tokens.
-  - Click Generate New Token and configure the following: Repository Access: Select the repository containing the Fiscochat image. Expiration: Choose an expiration date or select No expiration. Permissions: read:packages (Required to pull Docker images)
-  - Click Generate Token and copy the token.
-- Open your terminal and type:
-```bash
-echo YOUR_GITHUB_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-```
-- Pull the docker image:
-```bash
-docker pull ghcr.io/fizcochat/fizcochat/rag_chatbot:latest
-```
-- Run the docker container:
-```bash  
-docker run -d -p 8501:8501 -e OPENAI_API_KEY=your_openai_api_key -e PINECONE_API_KEY=your_pinecone_api_key ghcr.io/fizcochat/fizcochat/rag_chatbot:latest
-```
-- Now you can access the chatbot at http://localhost:8501/
-
-### 8. Adding new data to the chatbot
-To update the knowledge base with new documents:
-1. Add your files to the folder:
-    data_documents/
-
-2. Run the ingestion script to automatically process and upload them to Pinecone:
+1. Place documents in the `data_documents/` folder
+2. Run the ingestion script to process and upload to Pinecone:
+   ```bash
    python ingestion/main.py
+   ```
 
-This script compares the files with the index saved in a local JSON, embeds any new documents using OpenAI embeddings, and uploads them to your configured Pinecone index. The chatbot will then be able to retrieve answers from the updated content immediately.
+The script automatically:
+- Compares files with the current index
+- Embeds new documents using OpenAI
+- Updates the Pinecone vector index
 
-## How It Works
+## Docker Deployment
 
-### Language Processing Flow
+### Building the Docker image
+```bash
+docker build -t fiscochat .
+```
 
-1. **User Input**: The system accepts queries in either Italian or English
-2. **Language Detection**: Automatically processes based on user's language selection
-3. **For English Users**:
-   - Translates the query to Italian
-   - Processes using the Italian tax knowledge base
-   - Translates responses back to English
-4. **Topic Filtering**: FastText model ensures queries are relevant to Italian taxation
-5. **Context Management**: Maintains conversation history for coherent dialogue
-6. **Response Generation**: Uses retrieved information to generate accurate, contextual answers
-7. **Performance Monitoring**: Captures metrics and feedback for continuous improvement
+### Running the container
+```bash
+docker run -d -p 8501:8501 \
+  -e OPENAI_API_KEY=your_openai_api_key \
+  -e PINECONE_API_KEY=your_pinecone_api_key \
+  -e DASHBOARD_PASSWORD=your_dashboard_password \
+  fiscochat
+```
 
-## Troubleshooting
+## Technical Details
 
-- **Missing API Keys**: Ensure your `.env` file is correctly set up.
-- **Dependency Errors**: Run `pip install -r requirements.txt` again to ensure all dependencies are installed.
-- **Streamlit Not Found**: Run `pip install streamlit` inside your virtual environment.
-- **Language Issues**: If translation doesn't work, check your OpenAI API key and quota.
-- **FastText Model Missing**: If the chatbot complains about a missing model, ensure you have write permissions in the fasttext/models directory.
+### Components
 
-## Contributing
+- **app.py**: Main Streamlit application and UI
+- **utils.py**: Core utilities for RAG implementation, translation, and query processing
+- **fast_text/**: Topic relevance classifier
+- **monitor/**: Monitoring dashboard and logging functionality
+- **ingestion/**: Document processing and vector database management
 
-If you'd like to contribute, feel free to open issues or submit pull requests.
+### Dependencies
+
+- **LangChain**: Framework for RAG implementation
+- **OpenAI**: GPT-4 for response generation and embeddings
+- **Pinecone**: Vector database for document retrieval
+- **FastText**: ML model for topic classification
+- **Streamlit**: Web interface and dashboard
+
+## Testing
+
+Use the test plan outlined in `test_plan.md` to verify functionality:
+- Basic functionality tests
+- Multilingual support tests
+- Topic filtering tests
+- Monitoring functionality tests
+- RAG system tests
+- Error handling and edge cases
+- Cross-platform compatibility
 
 ## License
 
-This project is licensed under [MIT License](LICENSE).
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgements
+
+- OpenAI for GPT models
+- Pinecone for vector database technology
+- FastText for text classification

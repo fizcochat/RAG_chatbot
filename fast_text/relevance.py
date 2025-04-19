@@ -10,22 +10,33 @@ import re
 import logging
 from typing import List, Tuple, Optional, Set, Dict
 import streamlit as st
-import fasttext
 
 # Global model instance
 _FASTTEXT_MODEL = None
 _FASTTEXT_MODEL_PATH = None
+
+# Global flag to indicate if FastText is available
+_FASTTEXT_AVAILABLE = False
+
+# Try to import FastText, but don't fail if not available
+try:
+    import fasttext
+    _FASTTEXT_AVAILABLE = True
+except ImportError:
+    print("FastText not available. Using keyword-based relevance checking only.")
+    _FASTTEXT_AVAILABLE = False
 
 class FastTextRelevanceChecker:
     """Checks if text is relevant to tax/IVA topics using FastText classifier."""
     
     def __init__(self, model_path: str = None):
         """Initialize the relevance checker with a FastText model."""
-        global _FASTTEXT_MODEL, _FASTTEXT_MODEL_PATH
+        global _FASTTEXT_MODEL, _FASTTEXT_MODEL_PATH, _FASTTEXT_AVAILABLE
         
         self.model_path = model_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'tax_classifier.bin')
         self.relevant_labels = {"IVA"}
         self._conversation_history = []  # Store conversation history for testing
+        self.model = None
         
         # Keywords and their weights
         self.tax_keywords = {
@@ -93,28 +104,39 @@ class FastTextRelevanceChecker:
         }
         
         # Try to load the model, but don't fail if it's not available
-        try:
-            # Check if model is already loaded globally
-            if _FASTTEXT_MODEL is not None and _FASTTEXT_MODEL_PATH == self.model_path:
-                self.model = _FASTTEXT_MODEL
-                print("Using already loaded FastText model")
-            else:
-                self._load_model()
-        except Exception as e:
-            print(f"Warning: Could not load FastText model: {str(e)}")
-            print("Continuing with keyword-based relevance checking only")
+        if _FASTTEXT_AVAILABLE:
+            try:
+                # Check if model is already loaded globally
+                if _FASTTEXT_MODEL is not None and _FASTTEXT_MODEL_PATH == self.model_path:
+                    self.model = _FASTTEXT_MODEL
+                    print("Using already loaded FastText model")
+                else:
+                    self._load_model()
+            except Exception as e:
+                print(f"Warning: Could not load FastText model: {str(e)}")
+                print("Continuing with keyword-based relevance checking only")
+        else:
+            print("FastText not available. Using keyword-based relevance checking only.")
     
     def _load_model(self):
         """Load the FastText model with improved error handling and logging."""
-        global _FASTTEXT_MODEL, _FASTTEXT_MODEL_PATH
+        global _FASTTEXT_MODEL, _FASTTEXT_MODEL_PATH, _FASTTEXT_AVAILABLE
         
+        if not _FASTTEXT_AVAILABLE:
+            print("FastText module not available. Cannot load model.")
+            return
+            
         try:
             print(f"Attempting to load model from: {self.model_path}")
             if not os.path.exists(self.model_path):
                 print(f"Model file not found at: {self.model_path}")
                 print(f"Current working directory: {os.getcwd()}")
-                print(f"Directory contents: {os.listdir(os.path.dirname(self.model_path))}")
-                raise FileNotFoundError(f"FastText model not found at {self.model_path}")
+                model_dir = os.path.dirname(self.model_path)
+                if not os.path.exists(model_dir):
+                    os.makedirs(model_dir, exist_ok=True)
+                    print(f"Created directory: {model_dir}")
+                print("Model not found. Will use keyword-based relevance checking.")
+                return
             
             print("Model file found, loading...")
             self.model = fasttext.load_model(self.model_path)
@@ -134,7 +156,7 @@ class FastTextRelevanceChecker:
             print(f"Error loading FastText model: {str(e)}")
             print(f"Model path: {self.model_path}")
             print(f"Current working directory: {os.getcwd()}")
-            raise
+            self.model = None
     
     def _preprocess_text(self, text: str) -> str:
         """Preprocess text for relevance checking."""
@@ -184,6 +206,27 @@ class FastTextRelevanceChecker:
         
         return max_score, found_keywords, found_phrases
     
+    def _fasttext_predict(self, text: str) -> Tuple[bool, float]:
+        """Make a prediction using the FastText model."""
+        if not self.model or not _FASTTEXT_AVAILABLE:
+            return False, 0.0
+            
+        try:
+            # Get prediction from FastText model
+            labels, probabilities = self.model.predict(text)
+            
+            # Extract label and probability
+            label = labels[0].replace("__label__", "")
+            prob = probabilities[0]
+            
+            # Check if label is in relevant_labels
+            is_relevant = label in self.relevant_labels
+            
+            return is_relevant, float(prob)
+        except Exception as e:
+            print(f"FastText prediction error: {e}")
+            return False, 0.0
+    
     def is_relevant(self, text: str, threshold: float = 0.6) -> Tuple[bool, dict]:
         """
         Check if the text is relevant to tax/IVA topics.
@@ -216,11 +259,22 @@ class FastTextRelevanceChecker:
             'keyword_score': keyword_score,
             'keywords_found': found_keywords,
             'phrases_found': found_phrases,
+            'model_available': self.model is not None and _FASTTEXT_AVAILABLE,
             'context_relevance': False
         }
         
         # Store the query in conversation history for testing
         self._conversation_history.append(text)
+        
+        # Make FastText prediction if model is available
+        if self.model and _FASTTEXT_AVAILABLE:
+            fasttext_relevant, fasttext_confidence = self._fasttext_predict(processed_text)
+            details['fasttext_relevant'] = fasttext_relevant
+            details['fasttext_confidence'] = fasttext_confidence
+            
+            # Combine FastText and keyword relevance
+            if fasttext_relevant and fasttext_confidence > 0.7:
+                return True, details
         
         # Check conversation context
         if len(self._conversation_history) > 1:
@@ -249,58 +303,17 @@ class FastTextRelevanceChecker:
             words = set(processed_text.split())
             if words.intersection(question_words) and len(words) <= 6:
                 is_followup = True
-            
-            # 2. Check for queries starting with conjunctions
-            conjunctions = {'e', 'ma', 'però', 'oppure', 'invece'}
-            first_word = processed_text.split()[0] if processed_text else ''
-            if first_word in conjunctions:
+                
+            # 2. Check for pronouns and articles 
+            pronoun_words = {'lo', 'la', 'li', 'le', 'quello', 'questa', 'questo', 'suo', 'loro', 'mio', 'tuo', 'lui', 'lei', 'essa', 'esso', 'egli', 'essi'}
+            if words.intersection(pronoun_words):
                 is_followup = True
-            
-            # 3. Check for incomplete sentences that rely on context
-            if len(words) <= 4 and not any(word in self.tax_keywords for word in words):
-                is_followup = True
-            
-            # If this is a follow-up and we have relevant context, consider it relevant
-            if is_followup and max_context_score >= 0.6:
+                
+            # If recent messages were tax-related and this looks like a follow-up, consider it relevant
+            if max_context_score >= 0.7 and is_followup:
                 details['context_relevance'] = True
-                details['context_score'] = max_context_score
-                details['context_keywords'] = context_keywords
-                # Boost keyword score for follow-up questions
-                details['keyword_score'] = max(keyword_score, max_context_score * 0.8)
                 return True, details
         
-        # If we have a strong keyword match, consider it relevant
-        if keyword_score >= 0.7 or 'iva' in processed_text or \
-           any(phrase in processed_text for phrase in ['partita iva', 'aliquote iva']) or \
-           any(kw in processed_text for kw in ['detrarre', 'spese', 'freelancer', 'aliquot']):
-            details['combined_score'] = max(keyword_score, 0.8)
-            return True, details
-        
-        # Try model prediction if available
-        if self.model:
-            # Get model predictions
-            predictions = self.model.predict(processed_text, k=-1)
-            labels = [label.replace('__label__', '') for label in predictions[0]]
-            probs = predictions[1]
-            
-            # Create a dictionary of label probabilities
-            label_probs = {label: prob for label, prob in zip(labels, probs)}
-            details['model_predictions'] = label_probs
-            
-            # Calculate combined score with adjusted weights
-            iva_prob = label_probs.get('IVA', 0)
-            other_prob = label_probs.get('Other', 0)
-            
-            # If "Other" probability is very high and no strong keywords, it's not relevant
-            if other_prob >= 0.8 and keyword_score < 0.6:
-                details['combined_score'] = 0.0
-                return False, details
-            
-            # If IVA probability is decent and we have keywords, it's relevant
-            if iva_prob >= 0.4 and keyword_score >= 0.4:
-                details['combined_score'] = (iva_prob + keyword_score) / 2
-                return True, details
-        
-        # Default to keyword score if no model available
-        details['combined_score'] = keyword_score
-        return keyword_score >= threshold, details 
+        # Fall back to keyword-based classification
+        is_relevant = keyword_score >= threshold
+        return is_relevant, details 

@@ -10,11 +10,37 @@ initialization as the original main.py but launches the app.py Streamlit app.
 import os
 import sys
 import subprocess
+import platform
 
 def launch_chatbot():
     """Launch Fiscozen Chatbot using streamlit run app.py"""
     print("\n🔹🔹🔹 FISCOZEN TAX CHATBOT 🔹🔹🔹\n")
-    print("Launching the Fiscozen Tax Chatbot...")
+    
+    # Check for dependencies
+    try:
+        import streamlit
+        import fasttext
+        print("✅ Required dependencies found")
+    except ImportError as e:
+        missing_module = str(e).split("'")[1]
+        print(f"❌ Missing dependency: {missing_module}")
+        
+        if os.path.exists("install_dependencies.py"):
+            print("📦 Running dependency installer...")
+            subprocess.check_call([sys.executable, "install_dependencies.py"])
+        else:
+            print("📦 Installing core dependencies...")
+            try:
+                # Install core dependencies
+                subprocess.check_call([
+                    sys.executable, "-m", "pip", "install", 
+                    "streamlit", "streamlit-chat", "langchain", "langchain-openai", 
+                    "langchain-pinecone", "openai", "python-dotenv"
+                ])
+                print("✅ Core dependencies installed")
+            except subprocess.CalledProcessError:
+                print("❌ Failed to install dependencies")
+                sys.exit(1)
     
     # Terminate any existing Streamlit processes
     try:
@@ -39,6 +65,14 @@ def launch_chatbot():
         script_dir = os.path.dirname(os.path.abspath(__file__))
         app_path = os.path.join(script_dir, "app.py")
         
+        # Check if app.py exists
+        if not os.path.exists(app_path):
+            print(f"❌ Could not find app.py at {app_path}")
+            sys.exit(1)
+        
+        # Get correct command based on platform
+        system = platform.system()
+        
         # Launch Streamlit with app.py
         command = [
             sys.executable, 
@@ -46,9 +80,19 @@ def launch_chatbot():
             "streamlit", 
             "run",
             app_path,
-            "--server.port=8501",
-            "--server.address=localhost"
+            "--server.port=8501"
         ]
+        
+        # Add platform-specific options
+        if system == "Windows":
+            # On Windows, just use localhost binding
+            command.append("--server.address=localhost")
+        elif system == "Darwin":  # macOS
+            # On macOS, use localhost binding
+            command.append("--server.address=localhost")
+        else:  # Linux and others
+            # On Linux, bind to all interfaces
+            command.append("--server.address=0.0.0.0")
         
         print(f"Running command: {' '.join(command)}")
         process = subprocess.Popen(command)

@@ -5,7 +5,56 @@ Fiscozen Tax Chatbot - Streamlit App
 import os
 import streamlit as st
 from streamlit_chat import message
-from fast_text.relevance import FastTextRelevanceChecker
+import sys
+import importlib
+import logging
+
+# Configure logging for the app
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Function to check and import dependencies
+def import_dependencies():
+    try:
+        # Import FastText relevance checker (with fallback to keyword-only mode)
+        from fast_text.relevance import FastTextRelevanceChecker
+        st.session_state['relevance_checker'] = FastTextRelevanceChecker()
+        logger.info("FastText relevance checker initialized")
+    except ImportError:
+        logger.warning("FastText module not available. Using keyword-based relevance checking.")
+        # Define a simplified fallback relevance checker
+        from fast_text.relevance import FastTextRelevanceChecker
+        st.session_state['relevance_checker'] = FastTextRelevanceChecker()
+
+    try:
+        # Import core utilities
+        from utils import initialize_services, find_match, query_refiner, get_conversation_string, translate_to_italian, translate_from_italian
+        st.session_state['utils_imported'] = True
+    except ImportError as e:
+        st.error(f"Failed to import core utilities: {e}")
+        st.stop()
+    
+    try:
+        # Import LangChain components
+        from langchain_openai import ChatOpenAI
+        from langchain.memory import ConversationBufferMemory
+        from langchain.schema import HumanMessage, AIMessage
+        st.session_state['langchain_imported'] = True
+    except ImportError:
+        st.error("Failed to import LangChain components. Please install the required packages.")
+        st.write("Try running: `pip install langchain langchain-openai`")
+        st.stop()
+    
+    return True
+
+# Only import the required modules when inside the Streamlit app
+if 'utils_imported' not in st.session_state:
+    import_dependencies()
+
+# Now import core utilities - these imports will work because of the check above
 from utils import initialize_services, find_match, query_refiner, get_conversation_string, translate_to_italian, translate_from_italian
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
@@ -13,7 +62,6 @@ from langchain.schema import HumanMessage, AIMessage
 import uuid
 import time
 import base64
-import logging
 from monitor.db_logger import init_db, log_event
 from fast_text.trainer import train_fasttext_if_needed 
 
@@ -43,9 +91,13 @@ init_db()
 
 # Only train FastText model if needed, and only once when app starts
 if 'fasttext_trained' not in st.session_state:
-    train_fasttext_if_needed()
-    st.session_state['fasttext_trained'] = True
-
+    try:
+        train_fasttext_if_needed()
+        st.session_state['fasttext_trained'] = True
+    except Exception as e:
+        st.session_state['fasttext_trained'] = False
+        logger.warning(f"FastText training failed: {e}. Using keyword-based relevance checking only.")
+    
 # Initialize services
 try:
     if not OPENAI_API_KEY or not PINECONE_API_KEY:
@@ -73,15 +125,6 @@ except Exception as e:
     st.error(f"Error initializing services: {e}")
     st.stop()
 
-# Initialize relevance checker
-try:
-    if 'relevance_checker' not in st.session_state:
-        st.session_state['relevance_checker'] = FastTextRelevanceChecker()
-        print("FastText relevance checker initialized and stored in session state")
-except Exception as e:
-    st.error(f"Error initializing relevance checker: {e}")
-    st.stop()
-
 # Function to process a query and get a response
 def process_query(query, language="it"):
     try:
@@ -89,7 +132,7 @@ def process_query(query, language="it"):
         original_query = query
         if language == "en":
             query = translate_to_italian(query)
-            print(f"Translated query: {query}")
+            logger.info(f"Translated query: {query}")
         
         # Check relevance
         is_relevant, details = st.session_state['relevance_checker'].is_relevant(query)
