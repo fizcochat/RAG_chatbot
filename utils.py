@@ -54,7 +54,7 @@ def find_match(query, k=2):
         # Use GPT to generate a coherent response from the documents
         combined_content = "\n".join(contents)
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a tax assistant for Fiscozen. Create a clear, concise response in Italian based on the provided information. Focus on answering the user's question directly and professionally. Do not mention that you're using any source documents."},
                 {"role": "user", "content": f"Query: {query}\n\nInformation:\n{combined_content}"}
@@ -108,7 +108,7 @@ REFINED QUERY:"""
         
         # Get the refined query
         response = client.completions.create(
-            model="gpt-3.5-turbo-instruct",
+            model="gpt-4",
             prompt=prompt,
             temperature=0.7,
             max_tokens=256,

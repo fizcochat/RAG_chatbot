@@ -35,7 +35,7 @@ try:
     
     # Initialize LLM
     if 'llm' not in st.session_state:
-        st.session_state['llm'] = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
+        st.session_state['llm'] = ChatOpenAI(model_name="gpt-4", openai_api_key=OPENAI_API_KEY)
     
     # Initialize conversation memory
     if 'memory' not in st.session_state:
