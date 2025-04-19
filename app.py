@@ -10,19 +10,34 @@ from utils import initialize_services, find_match, query_refiner, get_conversati
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import HumanMessage, AIMessage
-from dotenv import load_dotenv
 import uuid
 import time
 import base64
+import logging
+from monitor.db_logger import init_db, log_event
 
 # Load environment variables
-load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+
+# Try to load from `.env` for local development
+if not OPENAI_API_KEY or not PINECONE_API_KEY:
+    if os.path.exists(".env"):
+        from dotenv import load_dotenv
+        load_dotenv()
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+
+# Try loading from Streamlit secrets if still missing
+if not OPENAI_API_KEY or not PINECONE_API_KEY:
+    if "OPENAI_API_KEY" in st.secrets and "PINECONE_API_KEY" in st.secrets:
+        OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+        PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
+# Initialize database
+init_db()
 
 # Initialize services
 try:
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-    
     if not OPENAI_API_KEY or not PINECONE_API_KEY:
         st.error("Please set up your API keys in the .env file")
         st.stop()
@@ -63,6 +78,7 @@ def process_query(query):
         is_relevant, details = st.session_state['relevance_checker'].is_relevant(query)
         
         if not is_relevant:
+            log_event("out_of_scope", query=query)
             return "Mi dispiace, ma posso rispondere solo a domande relative a tasse, IVA e questioni fiscali. Posso aiutarti con domande su questi argomenti?"
         else:
             # Process relevant query
@@ -70,6 +86,8 @@ def process_query(query):
             refined_query = query_refiner(conversation_string, query)
             response = find_match(refined_query)
             
+            log_event("answered", query=query, response=response)
+
             # Update conversation memory
             st.session_state['memory'].save_context(
                 {"input": query},
@@ -78,6 +96,7 @@ def process_query(query):
             
             return response
     except Exception as e:
+        logging.error(f"ERROR | Query: {query} | Exception: {str(e)}")
         st.error(f"Error processing query: {e}")
         return "Mi dispiace, si è verificato un errore. Per favore, riprova."
 
@@ -146,6 +165,33 @@ for i, message_obj in enumerate(st.session_state.chat_history):
         avatar_style="no-avatar"  # This disables the avatar
     )
 
+# Show feedback only for the last assistant message
+if st.session_state.chat_history:
+    last_bot_msg = next(
+        (msg for msg in reversed(st.session_state.chat_history) if not msg["is_user"]),
+        None
+    )
+    if last_bot_msg:
+        feedback_key = f"feedback_{last_bot_msg['key']}"
+        feedback = st.radio(
+            "Ti è stata utile questa risposta?",
+            ["👍", "👎"],
+            index=None,
+            key=feedback_key,
+            horizontal=True
+        )
+        if feedback:
+            last_user_msg = next(
+                (msg["message"] for msg in reversed(st.session_state.chat_history) if msg["is_user"]),
+                ""
+            )
+            st.session_state['pending_feedback'] = {
+                "query": last_user_msg,
+                "response": last_bot_msg["message"],
+                "feedback": feedback
+            }
+
+
 # Show typing indicator during processing
 if st.session_state.processing:
     st.write("Processing...")
@@ -178,7 +224,14 @@ if not st.session_state.chat_history:
 user_input = st.chat_input("Chiedimi qualcosa sul fisco italiano...")
 
 # Process user input
+# Process user input (with pending feedback handling)
 if user_input and not st.session_state.processing:
+    # If there's pending feedback, log it now
+    if 'pending_feedback' in st.session_state:
+        fb = st.session_state.pop('pending_feedback')
+        log_event("feedback", query=fb['query'], response=fb['response'], feedback=fb['feedback'])
+
+    # Store new user input
     user_msg_key = f"user_msg_{len(st.session_state.chat_history)}"
     st.session_state.chat_history.append({
         "message": user_input,
@@ -188,18 +241,37 @@ if user_input and not st.session_state.processing:
     st.session_state.processing = True
     st.rerun()
 
+
 # Process the response
 if st.session_state.processing:
     last_user_message = next((msg["message"] for msg in reversed(st.session_state.chat_history) if msg["is_user"]), None)
     
-    if last_user_message:
+    if last_user_message:        
+        start_time = time.time()
         response = process_query(last_user_message)
+
+        # Log performance metrics
+        duration = time.time() - start_time
+        log_event("perf", query=last_user_message, response_time=duration)
+
         bot_msg_key = f"bot_msg_{len(st.session_state.chat_history)}"
         st.session_state.chat_history.append({
             "message": response,
             "is_user": False,
             "key": bot_msg_key
         })
-    
+
+        # Clear previous feedback selections
+        for key in list(st.session_state.keys()):
+            if key.startswith("feedback_"):
+                del st.session_state[key]
+
+        # Prepare new pending feedback (to be logged later)
+        st.session_state["pending_feedback"] = {
+            "query": last_user_message,
+            "response": response,
+            "feedback": None  # Will be updated when user makes a choice
+        }
+
     st.session_state.processing = False
-    st.rerun() 
+    st.rerun()

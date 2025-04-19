@@ -4,6 +4,7 @@ from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
 from langchain.schema import HumanMessage, AIMessage
 import streamlit as st
+import logging
 
 # Load the environment variables from the .env file
 def initialize_services(openai_api_key, pinecone_api_key):
@@ -33,9 +34,13 @@ def find_match(query, k=2):
         if 'vectorstore' not in st.session_state:
             raise ValueError("Vector store not initialized")
         vectorstore = st.session_state['vectorstore']
-        
+
         # Perform similarity search
         docs = vectorstore.similarity_search(query, k=k)
+        
+        logging.info(f"RAG | Query: {query} | Retrieved Chunks: {len(docs)}")
+        chunk_preview = [doc.page_content[:60].replace("\n", " ") for doc in docs]
+        logging.info(f"RAG | Chunks Preview: {chunk_preview}")
         
         # Extract and clean the content
         contents = []
