@@ -1,25 +1,30 @@
 import sqlite3
 from datetime import datetime
 import pandas as pd
+import os
 
-DB_PATH = "monitor/logs/logs.db"
+DB_DIR = "monitor/logs"
+DB_PATH = os.path.join(DB_DIR, "logs.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            event TEXT,
-            query TEXT,
-            response TEXT,
-            feedback TEXT,
-            response_time REAL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)  # ensure folder exists
+    if not os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                event TEXT,
+                query TEXT,
+                response TEXT,
+                feedback TEXT,
+                response_time REAL
+            )
+        ''')
+        conn.commit()
+        conn.close()
+
 
 def log_event(event, query=None, response=None, feedback=None, response_time=None):
     conn = sqlite3.connect(DB_PATH)
