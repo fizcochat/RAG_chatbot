@@ -2,7 +2,7 @@ import streamlit as st
 from streamlit_chat import message
 import os
 from utils import initialize_services, find_match, query_refiner, get_conversation_string
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain.chains import ConversationChain
 from langchain.chains.conversation.memory import ConversationBufferWindowMemory
 from langchain.prompts import (
@@ -39,18 +39,18 @@ st.markdown("""
 
 st.subheader("Fiscozen")
 # Get API keys from environment variables
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
-if not OPENAI_API_KEY or not PINECONE_API_KEY:
+if not ANTHROPIC_API_KEY or not PINECONE_API_KEY:
     st.error("Please set up your API keys in the .env file")
     st.stop()
 
 # Initialize services with environment variables
-vectorstore, client = initialize_services(OPENAI_API_KEY, PINECONE_API_KEY)
+vectorstore, client = initialize_services(ANTHROPIC_API_KEY, PINECONE_API_KEY)
 
-# Remove the dropdown and set a fixed model
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
+# Initialize Anthropic chat model
+llm = ChatAnthropic(model="claude-3-haiku-20240307", anthropic_api_key=ANTHROPIC_API_KEY)
 
 if 'responses' not in st.session_state:
      st.session_state['responses'] = ["How can I assist you?"]
