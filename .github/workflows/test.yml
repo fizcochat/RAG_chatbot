@@ -33,18 +33,18 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+        DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
       run: |
         echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> $GITHUB_ENV
         echo "PINECONE_API_KEY=$PINECONE_API_KEY" >> $GITHUB_ENV
+        echo "DASHBOARD_PASSWORD=$DASHBOARD_PASSWORD" >> $GITHUB_ENV
 
     - name: Run tests with coverage
       run: |
         # Create test data directories if they don't exist
         mkdir -p fast_text/models
         mkdir -p data_documents
-        mkdir -p dtaa-documents
         mkdir -p argilla_data_49
-        mkdir -p argilla-data
         
         # Create a dummy model file for testing
         echo "dummy model" > fast_text/models/tax_classifier.bin
@@ -63,6 +63,7 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+        DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
         PYTHONPATH: ${{ github.workspace }}
         PYTEST_ADDOPTS: "--color=yes"
 
@@ -88,6 +89,7 @@ jobs:
         run: |
           docker run --rm -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
                         -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
+                        -e DASHBOARD_PASSWORD=${{ secrets.DASHBOARD_PASSWORD }} \
                         ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest pytest
 
       - name: Tag Docker Image
@@ -117,4 +119,5 @@ jobs:
           docker run -d --name rag-chatbot -p 8501:8501 \
             -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
             -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
+            -e DASHBOARD_PASSWORD=${{ secrets.DASHBOARD_PASSWORD }} \
             ghcr.io/fizcochat/${GITHUB_REPOSITORY,,}:latest
