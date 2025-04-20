@@ -55,23 +55,20 @@ The system is designed to work with a pre-populated Pinecone index containing al
 
 ### Installation
 
-#### Easy Installation (Cross-Platform)
+#### Automatic Installation (Recommended)
 
-We provide a cross-platform installation script that handles all dependencies for your specific system:
+Dependencies are automatically installed when you run the application for the first time:
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/fiscochat.git
 cd fiscochat
 
-# Run the easy installer
-python install_dependencies.py
-
-# Start the chatbot
+# Start the chatbot (dependencies are installed automatically)
 python run_fiscozen.py
 ```
 
-The installer will automatically detect your operating system and install the appropriate dependencies, including handling platform-specific requirements for FastText.
+The application will detect your operating system and automatically install all required dependencies, including handling platform-specific requirements for FastText.
 
 #### Manual Installation
 
@@ -126,21 +123,21 @@ If you prefer to install dependencies manually:
 
 You can run FiscoChat in two recommended ways:
 
-#### Option 1: Two-Step Process (recommended)
-This approach provides more control over the setup process:
+#### Option 1: Using the Launcher Script (Recommended)
+This approach provides a simplified setup process with automatic dependency management:
 
 ```bash
-# Step 1: Train the FastText model using Pinecone data
-python run_fiscozen.py --train-pinecone
-
-# Step 2: Run the chatbot
+# Run the chatbot
 python run_fiscozen.py
+
+# Or to train the FastText model first, then run the chatbot
+python run_fiscozen.py --train-pinecone
 ```
 
 This workflow:
-- First trains the FastText model using data stored in Pinecone 
-- Then launches the chatbot with the trained model
-- Gives you clear visibility into each step of the process
+- Automatically installs any missing dependencies
+- Optionally trains the FastText model using data stored in Pinecone
+- Launches the chatbot with the trained model
 
 #### Option 2: Directly with Streamlit
 For a more streamlined approach:
@@ -180,7 +177,7 @@ FastText requires C++ build tools. If you encounter issues:
 **On Linux:**
 ```bash
 # Ensure build tools are installed
-sudo apt-get install build-essential python3-dev  # Ubuntu/Debian
+sudo apt-get install build-essential python3-devel  # Ubuntu/Debian
 sudo yum install gcc gcc-c++ python3-devel        # CentOS/RHEL
 ```
 
@@ -278,6 +275,8 @@ docker run -d -p 8501:8501 \
 - **monitor/**: Monitoring dashboard and logging functionality
 - **ingestion/**: Document processing and vector database management
 - **fast_text/train_with_pinecone.py**: Script for training FastText using Pinecone data
+- **run_fiscozen.py**: Launcher script with automatic dependency management
+- **main.py**: Core setup functions and utilities
 
 ### Dependencies
 

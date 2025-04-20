@@ -120,11 +120,40 @@ except Exception as e:
 # Function to process a query and get a response
 def process_query(query, language="it"):
     try:
+        if not query.strip():
+            # Return generic greeting for empty messages
+            if language == "it":
+                return "Ciao! Come posso aiutarti con questioni fiscali o servizi Fiscozen oggi?"
+            else:
+                return "Hello! How can I help you with tax matters or Fiscozen services today?"
+            
+        # Check for common greetings
+        greeting_patterns_it = ["ciao", "salve", "buongiorno", "buonasera", "come stai", "come va", "hey"]
+        greeting_patterns_en = ["hello", "hi", "hey", "good morning", "good evening", "how are you", "what's up"]
+        
+        # Normalize query for pattern matching
+        query_lower = query.lower().strip()
+        
         # Translate the query to Italian if the user is using English
         original_query = query
         if language == "en":
             query = translate_to_italian(query)
             print(f"Translated query: {query}")
+            
+        # Check if this is just a greeting before relevance check
+        is_greeting = False
+        if language == "it" and any(pattern in query_lower for pattern in greeting_patterns_it):
+            is_greeting = True
+        elif language == "en" and any(pattern in query_lower for pattern in greeting_patterns_en):
+            is_greeting = True
+            
+        if is_greeting:
+            log_event("greeting", query=original_query)
+            
+            if language == "it":
+                return "Ciao! Sono il tuo assistente fiscale Fiscozen. Come posso aiutarti con domande su tasse, IVA o servizi Fiscozen oggi?"
+            else:
+                return "Hello! I'm your Fiscozen tax assistant. How can I help you with questions about taxes, VAT, or Fiscozen services today?"
         
         # Check relevance
         is_relevant, details = st.session_state['relevance_checker'].is_relevant(query)
@@ -133,14 +162,21 @@ def process_query(query, language="it"):
             log_event("out_of_scope", query=original_query)
             
             if language == "it":
-                response = "Mi dispiace, ma posso rispondere solo a domande relative a tasse, IVA e questioni fiscali. Posso aiutarti con domande su questi argomenti?"
+                return "Mi dispiace, ma posso rispondere solo a domande relative a tasse, IVA e questioni fiscali. Posso aiutarti con domande su questi argomenti?"
             else:  # English
-                response = "I'm sorry, but I can only answer questions about taxes, VAT, and fiscal matters. Can I help you with questions on these topics?"
+                return "I'm sorry, but I can only answer questions about taxes, VAT, and fiscal matters. Can I help you with questions on these topics?"
         else:
             # Process relevant query
             conversation_string = get_conversation_string()
             refined_query = query_refiner(conversation_string, query)
             italian_response = find_match(refined_query)
+            
+            # Ensure we have a non-empty response
+            if not italian_response or italian_response.strip() == "":
+                if language == "it":
+                    italian_response = "Mi dispiace, non ho trovato informazioni specifiche su questo argomento. Posso aiutarti con altre domande relative a tasse o servizi Fiscozen?"
+                else:
+                    italian_response = "I'm sorry, I couldn't find specific information on this topic. Can I help you with other questions about taxes or Fiscozen services?"
             
             log_event("answered", query=original_query, response=italian_response)
             
