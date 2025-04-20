@@ -90,8 +90,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/fizcochat/${{ github.repository_owner }}-${{ github.event.repository.name }}:latest
-            ghcr.io/fizcochat/${{ github.repository_owner }}-${{ github.event.repository.name }}:${{ github.sha }}
+            ghcr.io/fizcochat/rag-chatbot:latest
+            ghcr.io/fizcochat/rag-chatbot:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -107,11 +107,11 @@ jobs:
       - name: Deploy Container
         run: |
           echo "Deploying container..."
-          docker pull ghcr.io/fizcochat/${{ github.repository_owner }}-${{ github.event.repository.name }}:latest
+          docker pull ghcr.io/fizcochat/rag-chatbot:latest
           docker stop rag-chatbot || true
           docker rm rag-chatbot || true
           docker run -d --name rag-chatbot -p 8501:8501 \
             -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
             -e PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }} \
             -e DASHBOARD_PASSWORD=${{ secrets.DASHBOARD_PASSWORD }} \
-            ghcr.io/fizcochat/${{ github.repository_owner }}-${{ github.event.repository.name }}:latest
+            ghcr.io/fizcochat/rag-chatbot:latest

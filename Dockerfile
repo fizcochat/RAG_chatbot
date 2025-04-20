@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
 
 WORKDIR /app
 
@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     git \
     && rm -rf /var/lib/apt/lists/*
+
+# Stage for dependency installation
+FROM base AS dependencies
 
 # Copy requirements file first to leverage Docker cache
 COPY requirements.txt ./
@@ -19,6 +22,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
     # Attempt to install fasttext or continue on failure
     pip install --no-cache-dir fasttext || echo "FastText installation failed, will use fallback mode" && \
     pip install --no-cache-dir -r requirements.txt
+
+# Final stage for application
+FROM dependencies AS application
 
 # Copy the rest of the application
 COPY . .
