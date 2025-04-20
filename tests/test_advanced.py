@@ -41,16 +41,32 @@ def mock_conversation():
 class TestRagComponents:
     """Tests for individual RAG system components"""
     
-    @patch('utils.query_refiner')
-    def test_query_refinement(self, mock_refiner, mock_openai_client):
+    def test_query_refinement(self, mock_openai_client):
         """Test that queries get properly refined"""
-        mock_refiner.return_value = "What is the VAT rate in Italy for digital services?"
+        # Configure the mock OpenAI client to return a detailed response
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(text="What is the Value Added Tax (VAT/IVA) rate in Italy for digital services and electronic products under the current tax regulations?")]
+        mock_openai_client.completions.create.return_value = mock_response
+        
+        # Original simple query
         original_query = "What's the VAT for digital?"
         
-        # Set up a mock conversation context
+        # Mock conversation context
         conversation = "Human: Hello\nBot: Hi there!\n"
         
+        # Import the actual function to test
+        from utils import query_refiner
+        
+        # Call the function with our mocked dependencies
         refined = query_refiner(mock_openai_client, conversation, original_query)
+        
+        # Verify the OpenAI client was called with appropriate parameters
+        mock_openai_client.completions.create.assert_called_once()
+        call_args = mock_openai_client.completions.create.call_args[1]
+        assert "refined query" in call_args["prompt"].lower(), "Prompt should mention refining the query"
+        assert original_query in call_args["prompt"], "Prompt should include the original query"
+        
+        # Assertions on the refined query
         assert refined != original_query, "Query should be refined"
         assert len(refined) > len(original_query), "Refined query should be more detailed"
         assert "VAT" in refined or "tax" in refined.lower(), "Refined query should maintain topic relevance"
@@ -58,13 +74,30 @@ class TestRagComponents:
     @patch('utils.find_match')
     def test_document_retrieval(self, mock_find_match, mock_vectorstore):
         """Test document retrieval functionality"""
-        mock_find_match.return_value = "VAT (IVA in Italian) is the Value Added Tax in Italy."
+        # Set up a more realistic return value for the mocked find_match function
+        mock_find_match.return_value = """Content: VAT (IVA in Italian) is the Value Added Tax in Italy, with a standard rate of 22%.
+Source: tax_guide_2023.pdf
+
+Content: Reduced VAT rates of 10% and 4% apply to specific categories of goods and services in Italy.
+Source: vat_regulations.pdf"""
+        
         query = "What is IVA?"
         
+        # Call the function under test
         retrieved = find_match(mock_vectorstore, query)
+        
+        # Verify it returns content
         assert retrieved, "Should return retrieved documents"
-        assert "VAT" in retrieved or "tax" in retrieved.lower(), "Retrieved content should be relevant to query"
+        
+        # Check that the content is relevant to the query
+        assert any(term.lower() in retrieved.lower() for term in ["VAT", "IVA", "tax", "Italy"]), "Retrieved content should be relevant to query"
+        
+        # Verify that similarity search was called
         assert mock_vectorstore.similarity_search.called, "Similarity search should be called"
+        
+        # Check that the number of results requested is appropriate
+        call_args = mock_vectorstore.similarity_search.call_args[1]
+        assert call_args.get('k', 0) >= 5, "Should retrieve an adequate number of documents"
 
 # ==================== CONVERSATION FLOW TESTS ====================
 

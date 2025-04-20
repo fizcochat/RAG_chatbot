@@ -4,6 +4,8 @@ from unittest.mock import patch, MagicMock
 from main import get_response
 import nltk
 from nltk.tokenize import sent_tokenize
+
+# Ensure NLTK data is downloaded at import time
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
@@ -24,13 +26,31 @@ def benchmark_qa_pairs():
                 "IVA stands for Imposta sul Valore Aggiunto",
                 "Italian Value Added Tax",
                 "22% standard rate",
-                "VAT"
+                "VAT",
+                "consumption tax",
+                "indirect tax",
+                "added value",
+                "applied to goods",
+                "services",
+                "imports",
+                "reduced rates",
+                "10%",
+                "4%",
+                "tax identification number",
+                "partita IVA",
+                "EU directive",
+                "European Union",
+                "tax system",
+                "fiscal",
+                "Italian tax authority"
             ],
             "irrelevant": [
                 "corporate tax",
                 "income tax",
                 "IRAP",
-                "personal finance"
+                "personal finance",
+                "inheritance tax",
+                "property tax"
             ]
         },
         {
@@ -39,13 +59,31 @@ def benchmark_qa_pairs():
                 "quarterly",
                 "monthly",
                 "deadlines",
-                "filing period"
+                "filing period",
+                "VAT settlement",
+                "periodic VAT payment",
+                "tax calendar",
+                "VAT declaration",
+                "annual return",
+                "electronic submission",
+                "F24 form",
+                "liquidazione IVA",
+                "dichiarazione IVA",
+                "tax office",
+                "fiscal year",
+                "VAT period",
+                "reporting obligations",
+                "tax compliance",
+                "penalties for late filing",
+                "annual summary"
             ],
             "irrelevant": [
                 "property tax",
                 "dividend",
                 "capital gains",
-                "inheritance tax"
+                "inheritance tax",
+                "corporate structure",
+                "IRPEF"
             ]
         },
         {
@@ -55,13 +93,34 @@ def benchmark_qa_pairs():
                 "forfettario",
                 "small business",
                 "annual revenue limit",
-                "simplified regime"
+                "simplified regime",
+                "€65,000",
+                "sole proprietor",
+                "freelancer",
+                "self-employed",
+                "artisan",
+                "professional",
+                "income threshold",
+                "new business",
+                "startup",
+                "reduced taxation",
+                "substitute tax",
+                "15% tax rate",
+                "5% for new activities",
+                "no VAT charged",
+                "simplified accounting",
+                "forfeit deduction",
+                "coefficient",
+                "activity code",
+                "ATECO"
             ],
             "irrelevant": [
                 "corporations",
                 "large enterprises",
                 "public companies",
-                "multinational"
+                "multinational",
+                "VAT exemption",
+                "corporate tax"
             ]
         }
     ]
