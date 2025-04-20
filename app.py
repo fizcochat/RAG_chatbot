@@ -350,10 +350,10 @@ if page == "monitor":
 
     st.subheader("📌 Metriche chiave")
     col1, col2, col3, col4, col5, col6 = st.columns(6)
-    col1.metric("✅ Risposte", df[df.event == "answered"].shape[0])
-    col2.metric("❌ Fuori ambito", df[df.event == "out_of_scope"].shape[0])
+    col1.metric("✅ Answered", df[df.event == "answered"].shape[0])
+    col2.metric("❌ Irrelevant and Dismissed", df[df.event == "out_of_scope"].shape[0])
     col3.metric("✅ RAG Success", df[df.event == "rag_success"].shape[0])
-    col4.metric("👤 Richieste consulente", df[df.event == "advisor_request"].shape[0])
+    col4.metric("👤 Advisor requests", df[df.event == "advisor_request"].shape[0])
     col5.metric("👍 Feedback positivo", df[df.feedback == "👍"].shape[0])
     col6.metric("👎 Feedback negativo", df[df.feedback == "👎"].shape[0])
 
