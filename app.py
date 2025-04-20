@@ -7,14 +7,6 @@ import streamlit as st
 from streamlit_chat import message
 import sys
 import importlib
-import logging
-
-# Configure logging for the app
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 # Function to check and import dependencies
 def import_dependencies():
@@ -22,9 +14,9 @@ def import_dependencies():
         # Import FastText relevance checker (with fallback to keyword-only mode)
         from fast_text.relevance import FastTextRelevanceChecker
         st.session_state['relevance_checker'] = FastTextRelevanceChecker()
-        logger.info("FastText relevance checker initialized")
+        print("FastText relevance checker initialized")
     except ImportError:
-        logger.warning("FastText module not available. Using keyword-based relevance checking.")
+        print("FastText module not available. Using keyword-based relevance checking.")
         # Define a simplified fallback relevance checker
         from fast_text.relevance import FastTextRelevanceChecker
         st.session_state['relevance_checker'] = FastTextRelevanceChecker()
@@ -96,7 +88,7 @@ if 'fasttext_trained' not in st.session_state:
         st.session_state['fasttext_trained'] = True
     except Exception as e:
         st.session_state['fasttext_trained'] = False
-        logger.warning(f"FastText training failed: {e}. Using keyword-based relevance checking only.")
+        print(f"⚠️ FastText training failed: {e}. Falling back to keyword-based relevance checking.")
     
 # Initialize services
 try:
@@ -132,7 +124,7 @@ def process_query(query, language="it"):
         original_query = query
         if language == "en":
             query = translate_to_italian(query)
-            logger.info(f"Translated query: {query}")
+            print(f"Translated query: {query}")
         
         # Check relevance
         is_relevant, details = st.session_state['relevance_checker'].is_relevant(query)
@@ -166,7 +158,7 @@ def process_query(query, language="it"):
             
             return response
     except Exception as e:
-        logging.error(f"ERROR | Query: {query} | Exception: {str(e)}")
+        print(f"❌ ERROR | Query: {query} | Exception: {e}")
         st.error(f"Error processing query: {e}")
         
         if language == "it":
@@ -199,6 +191,7 @@ if page == "monitor":
     import pandas as pd
     import altair as alt
     from io import StringIO
+    from streamlit_autorefresh import st_autorefresh
 
     # Load dashboard password from .env or st.secrets (only if secrets exist)
     DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD")
@@ -222,6 +215,8 @@ if page == "monitor":
     # Still not authenticated? Stop app
     if not st.session_state.get("monitor_authenticated", False):
         st.stop()
+    
+    st_autorefresh(interval=5000, limit=None, key="monitor-refresh")
 
     rows = get_all_logs()
     if not rows:
