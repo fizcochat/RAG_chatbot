@@ -140,6 +140,71 @@ def process_query(query, language="it"):
             query = translate_to_italian(query)
             print(f"Translated query: {query}")
             
+        # Check if user is requesting to speak with a real advisor
+        advisor_patterns_it = [
+            "parlare con un consulente", "parlare con un advisor", "parlare con una persona",
+            "contattare un consulente", "contattare un advisor", "contattare una persona",
+            "assistente umano", "operatore umano", "supporto umano", "persona reale",
+            "contatto diretto", "email di contatto", "numero di telefono", "parlare con fiscozen",
+            "esperto di fiscozen", "consulente fiscozen", "contattare un esperto"
+        ]
+        advisor_patterns_en = [
+            "speak with an advisor", "speak with a consultant", "speak with a person",
+            "talk to an advisor", "talk to a consultant", "talk to a person",
+            "human assistant", "human operator", "human support", "real person",
+            "direct contact", "contact email", "phone number", "speak with fiscozen",
+            "fiscozen expert", "fiscozen consultant", "contact an expert"
+        ]
+        
+        # Check if this is a request for a real advisor
+        is_advisor_request = False
+        if language == "it":
+            # More robust pattern matching for Italian
+            for pattern in advisor_patterns_it:
+                if pattern in query_lower:
+                    is_advisor_request = True
+                    break
+            
+            # Additional check for key terms appearing together
+            if not is_advisor_request and "fiscozen" in query_lower:
+                key_terms = ["esperto", "consulente", "supporto", "contattare", "parlare", "email", "assistenza"]
+                if any(term in query_lower for term in key_terms):
+                    is_advisor_request = True
+        elif language == "en":
+            # Check both in the original English and translated Italian query
+            for pattern in advisor_patterns_en:
+                if pattern in query_lower:
+                    is_advisor_request = True
+                    break
+                    
+            # Additional check for key terms appearing together
+            if not is_advisor_request and "fiscozen" in query_lower:
+                key_terms = ["expert", "consultant", "support", "contact", "speak", "talk", "email", "assistance"]
+                if any(term in query_lower for term in key_terms):
+                    is_advisor_request = True
+                    
+            # Also check Italian patterns in the translated query
+            if not is_advisor_request:
+                for pattern in advisor_patterns_it:
+                    if pattern in query.lower():
+                        is_advisor_request = True
+                        break
+                        
+                # Additional check for the translated query
+                if not is_advisor_request and "fiscozen" in query.lower():
+                    key_terms = ["esperto", "consulente", "supporto", "contattare", "parlare", "email", "assistenza"]
+                    if any(term in query.lower() for term in key_terms):
+                        is_advisor_request = True
+                
+        if is_advisor_request:
+            log_event("advisor_request", query=original_query)
+            print(f"✅ ADVISOR REQUEST DETECTED: {original_query}")
+            
+            if language == "it":
+                return "Puoi contattare un consulente reale a: jvargas.ieu2022@student.ie.edu"
+            else:
+                return "You can contact a real advisor at: jvargas.ieu2022@student.ie.edu"
+            
         # Check if this is just a greeting before relevance check
         is_greeting = False
         if language == "it" and any(pattern in query_lower for pattern in greeting_patterns_it):
@@ -284,11 +349,12 @@ if page == "monitor":
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
     st.subheader("📌 Metriche chiave")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("✅ Risposte", df[df.event == "answered"].shape[0])
     col2.metric("❌ Fuori ambito", df[df.event == "out_of_scope"].shape[0])
-    col3.metric("👍 Feedback positivo", df[df.feedback == "👍"].shape[0])
-    col4.metric("👎 Feedback negativo", df[df.feedback == "👎"].shape[0])
+    col3.metric("👤 Richieste consulente", df[df.event == "advisor_request"].shape[0])
+    col4.metric("👍 Feedback positivo", df[df.feedback == "👍"].shape[0])
+    col5.metric("👎 Feedback negativo", df[df.feedback == "👎"].shape[0])
 
     st.markdown("---")
     st.subheader("📈 Trend")
@@ -297,6 +363,7 @@ if page == "monitor":
     if not df.empty:
         answered_over_time = df[df.event == "answered"].groupby(pd.Grouper(key="timestamp", freq="15min")).size().reset_index(name="count")
         out_of_scope_over_time = df[df.event == "out_of_scope"].groupby(pd.Grouper(key="timestamp", freq="15min")).size().reset_index(name="count")
+        advisor_request_over_time = df[df.event == "advisor_request"].groupby(pd.Grouper(key="timestamp", freq="15min")).size().reset_index(name="count")
         feedback_over_time = df[df.event == "feedback"].groupby([pd.Grouper(key="timestamp", freq="15min"), "feedback"]).size().unstack(fill_value=0).reset_index()
         response_times = df.dropna(subset=["response_time"])
 
@@ -311,6 +378,13 @@ if page == "monitor":
             alt.Chart(out_of_scope_over_time).mark_line(point=True, color="orange").encode(
                 x="timestamp:T", y="count:Q", tooltip=["timestamp:T", "count:Q"]
             ).properties(title="❌ Fuori ambito nel tempo").interactive(),
+            use_container_width=True
+        )
+        
+        st.altair_chart(
+            alt.Chart(advisor_request_over_time).mark_line(point=True, color="green").encode(
+                x="timestamp:T", y="count:Q", tooltip=["timestamp:T", "count:Q"]
+            ).properties(title="👤 Richieste consulente nel tempo").interactive(),
             use_container_width=True
         )
 
@@ -419,7 +493,8 @@ else:
             "Come funziona l'IVA per i liberi professionisti?",
             "Quali detrazioni fiscali posso avere per i figli?",
             "Come gestire le fatture elettroniche?",
-            "Cosa offre Fiscozen?"
+            "Cosa offre Fiscozen?",
+            "Vorrei parlare con un consulente reale"
         ]
         
         suggested_title = "Domande Frequenti:"
@@ -448,7 +523,8 @@ else:
             "How does VAT work for freelancers?",
             "What tax deductions can I get for children?",
             "How to manage electronic invoices?",
-            "What does Fiscozen offer?"
+            "What does Fiscozen offer?",
+            "I'd like to speak with a real advisor"
         ]
         
         suggested_title = "Frequently Asked Questions:"
