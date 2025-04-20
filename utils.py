@@ -13,11 +13,11 @@ def initialize_services(openai_api_key, pinecone_api_key):
     openai.api_key = openai_api_key
 
     # Initialize OpenAI Embeddings model
-    model = OpenAIEmbeddings(model="text-embedding-ada-002", openai_api_key=openai.api_key)
+    model = OpenAIEmbeddings(model="text-embedding-3-large", openai_api_key=openai.api_key)
 
     # Initialize Pinecone with API key
     pc = Pinecone(api_key=pinecone_api_key)
-    index = pc.Index("ragtest")
+    index = pc.Index("fiscozen")
 
     # Set up Pinecone VectorStore
     vectorstore = PineconeVectorStore(index, model, "text")

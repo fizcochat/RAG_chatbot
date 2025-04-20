@@ -263,6 +263,33 @@ def launch_chatbot():
         print(f"❌ Failed to start Streamlit server: {e}")
         sys.exit(1)
 
+def train_fasttext_with_pinecone():
+    """Train the FastText model with data from Pinecone"""
+    print("\n=== Training FastText Model with Pinecone Data ===")
+    
+    # Skip in test environment
+    if is_test_environment:
+        print("🧪 Test environment detected - skipping FastText training")
+        return
+    
+    # Check if pinecone training script exists
+    train_script = "fast_text/train_with_pinecone.py"
+    if not os.path.exists(train_script):
+        print(f"❌ Training script not found: {train_script}")
+        print("Please make sure the repository was cloned correctly")
+        sys.exit(1)
+    
+    print("🔄 Starting FastText training with Pinecone data...")
+    try:
+        # Run the training script
+        subprocess.check_call([sys.executable, train_script])
+        print("✅ FastText classifier training with Pinecone data completed successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ FastText classifier training failed: {e}")
+        choice = input("Do you want to continue without training? (y/n): ")
+        if choice.lower() != 'y':
+            sys.exit(1)
+
 # === Main Execution Logic ===
 if not is_streamlit_running and not is_test_environment:
     # We're running directly (not via Streamlit or tests)

@@ -26,3 +26,9 @@ fast_text/models/*.bin
 # Streamlit-specific
 .streamlit/config.toml
 
+# Private data
+argilla_data_49/
+data_documents/
+
+# FastText model files (users will generate these locally)
+fast_text/models/tax_classifier.bin

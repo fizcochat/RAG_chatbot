@@ -38,7 +38,7 @@ if project_root not in sys.path:
 # Pinecone setup
 openai_api_key = os.getenv("OPENAI_API_KEY")
 pinecone_api_key = os.getenv("PINECONE_API_KEY")
-pinecone_index = os.getenv("PINECONE_INDEX", "ragtest")
+pinecone_index = os.getenv("PINECONE_INDEX", "fiscozen")
 pc = Pinecone(api_key=pinecone_api_key)
 index = pc.Index(pinecone_index)
 

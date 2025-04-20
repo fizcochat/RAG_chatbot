@@ -185,6 +185,27 @@ def get_image_base64(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
+# Check if FastText model exists
+model_path = "fast_text/models/tax_classifier.bin"
+if not os.path.exists(model_path):
+    st.warning("FastText model not found. The chatbot needs to train a classifier model first.")
+    if st.button("Train model using Pinecone data"):
+        with st.spinner("Training FastText model with Pinecone data..."):
+            try:
+                # Run the training script
+                import subprocess
+                result = subprocess.run([sys.executable, "fast_text/train_with_pinecone.py"], 
+                                        capture_output=True, text=True)
+                if result.returncode == 0:
+                    st.success("Model trained successfully! Reloading the application...")
+                    import time
+                    time.sleep(2)  # Give user time to see the message
+                    st.experimental_rerun()  # Reload the app
+                else:
+                    st.error(f"Failed to train model. Error: {result.stderr}")
+            except Exception as e:
+                st.error(f"Error training model: {e}")
+    st.stop()  # Stop the app until model is trained
 
 if page == "monitor":
     from monitor.db_logger import get_all_logs, export_logs_to_csv

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Fiscozen Tax Chatbot - Launch Script
+Fiscozen Tax Chatbot - Launcher
 
 This script provides an easy way to launch the Fiscozen Tax Chatbot without
 having to remember the streamlit command. It performs the same setup and
@@ -9,10 +9,39 @@ initialization as the original main.py but launches the app.py Streamlit app.
 
 import os
 import sys
+import argparse
 import subprocess
 import platform
 
-def launch_chatbot():
+def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Fiscozen Tax Chatbot")
+    parser.add_argument("--train-pinecone", action="store_true", 
+                        help="Train the FastText model using data from Pinecone")
+    parser.add_argument("--monitor", action="store_true",
+                        help="Launch the monitoring dashboard")
+    args = parser.parse_args()
+    
+    # Handle Pinecone training
+    if args.train_pinecone:
+        from main import train_fasttext_with_pinecone
+        train_fasttext_with_pinecone()
+        sys.exit(0)
+    
+    # Import main module
+    try:
+        from main import launch_chatbot, terminate_streamlit_processes
+    except ImportError:
+        print("❌ Error importing main module. Make sure you're in the correct directory.")
+        sys.exit(1)
+    
+    # Kill any existing Streamlit processes
+    terminate_streamlit_processes()
+    
+    # Launch the chatbot
+    launch_chatbot(monitor_mode=args.monitor)
+
+def launch_chatbot(monitor_mode=False):
     """Launch Fiscozen Chatbot using streamlit run app.py"""
     print("\n🔹🔹🔹 FISCOZEN TAX CHATBOT 🔹🔹🔹\n")
     
@@ -111,4 +140,4 @@ def launch_chatbot():
         sys.exit(1)
 
 if __name__ == "__main__":
-    launch_chatbot() 
+    main() 

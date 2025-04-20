@@ -35,6 +35,17 @@ FiscoChat employs a sophisticated architecture:
    - Translation back to user's language (if needed)
 3. **Monitoring System**: SQLite-based logging and Streamlit dashboard for performance tracking
 
+## Pinecone Integration
+
+FiscoChat uses [Pinecone](https://www.pinecone.io/) as its vector database to power the RAG system:
+
+- **Centralized Knowledge Base**: All tax documents are embedded and stored in Pinecone, eliminating the need to distribute large document datasets with the code repository
+- **Semantic Search**: Pinecone enables fast, accurate retrieval of relevant context based on the semantic meaning of user queries
+- **Scalable Performance**: Handles thousands of document chunks with millisecond query times
+- **Consistent Knowledge Access**: Multiple instances of FiscoChat can access the same knowledge base using just an API key
+
+The system is designed to work with a pre-populated Pinecone index containing all the tax-related documents, allowing for a lightweight repository deployment while maintaining robust knowledge retrieval capabilities.
+
 ## Getting Started
 
 ### Prerequisites
@@ -113,28 +124,37 @@ If you prefer to install dependencies manually:
 
 ### Running the Application
 
-You can run FiscoChat in several ways:
+You can run FiscoChat in two recommended ways:
 
-#### Option 1: Using the launcher script (recommended)
+#### Option 1: Two-Step Process (recommended)
+This approach provides more control over the setup process:
+
 ```bash
+# Step 1: Train the FastText model using Pinecone data
+python run_fiscozen.py --train-pinecone
+
+# Step 2: Run the chatbot
 python run_fiscozen.py
 ```
 
-This script will automatically:
-- Check and install any missing dependencies
-- Handle platform-specific configurations
-- Start the Streamlit server with the correct settings
+This workflow:
+- First trains the FastText model using data stored in Pinecone 
+- Then launches the chatbot with the trained model
+- Gives you clear visibility into each step of the process
 
 #### Option 2: Directly with Streamlit
+For a more streamlined approach:
+
 ```bash
 streamlit run app.py
 ```
 
-The application will:
-- Install any missing dependencies
-- Train or load the FastText model (with fallback to keyword-based filtering if FastText isn't available)
-- Set up required directories
-- Launch the Streamlit interface at http://localhost:8501
+With this method:
+- The application automatically detects if the FastText model is missing
+- If missing, it provides a button to train the model using Pinecone data
+- After training completes, the app automatically reloads with the trained model
+
+Both methods utilize the same Pinecone-powered knowledge base, so you don't need to have document files locally on your machine.
 
 ### Troubleshooting
 
@@ -183,6 +203,40 @@ To access:
 1. Add `?page=monitor` to the URL: http://localhost:8501/?page=monitor
 2. Enter the dashboard password configured in your `.env` file
 
+## Training the FastText Model with Pinecone Data
+
+FiscoChat includes a FastText model for classifying whether queries are tax-related. This model is trained using data stored in your Pinecone vector database, which makes it easy to share the same knowledge base across multiple installations without distributing large datasets.
+
+### Automatic Training
+
+When you first run the application, it will check if the FastText model exists. If not:
+
+- If using `python run_fiscozen.py`, it will prompt you to train the model
+- If using `streamlit run app.py`, it will display a "Train model using Pinecone data" button
+
+### Manual Training
+
+You can explicitly trigger training at any time:
+
+```bash
+# Train using the runner script
+python run_fiscozen.py --train-pinecone
+
+# Or use the dedicated training script directly
+python fast_text/train_with_pinecone.py
+```
+
+### How Training Works
+
+The training process:
+1. Connects to your Pinecone index
+2. Extracts tax-related examples from the stored documents
+3. Generates balanced non-tax examples
+4. Trains and saves the FastText model
+5. Tests the model with sample queries
+
+Once training is complete, the model will be saved to `fast_text/models/tax_classifier.bin` and used automatically by the application.
+
 ## Updating Knowledge Base
 
 To add new documents to the chatbot's knowledge:
@@ -223,6 +277,7 @@ docker run -d -p 8501:8501 \
 - **fast_text/**: Topic relevance classifier
 - **monitor/**: Monitoring dashboard and logging functionality
 - **ingestion/**: Document processing and vector database management
+- **fast_text/train_with_pinecone.py**: Script for training FastText using Pinecone data
 
 ### Dependencies
 
@@ -237,18 +292,11 @@ docker run -d -p 8501:8501 \
 The chatbot uses a fine-tuned FastText model to determine if a user query is tax-related:
 
 - Classifies text into "Tax" and "Other" categories
-- Trained on Italian tax documents, labeled conversations, and synthetic examples
-- Achieves ~99% accuracy on test data with 100% accuracy on tax-related queries
+- Trained on tax examples extracted from Pinecone
+- Achieves high accuracy on test data 
 - Helps filter out non-tax related queries to keep the chatbot focused on its domain expertise
 
-The model is automatically loaded (not retrained) when the application starts. If the model file doesn't exist, it will be trained once during the first run.
-
-To manually retrain the FastText model:
-```bash
-python run_fasttext_training.py --force
-```
-
-See `fast_text/README.md` for detailed information about the model and training process.
+The model is automatically loaded when the application starts. If the model file doesn't exist, you'll be prompted to train it using Pinecone data.
 
 ## Testing
 
