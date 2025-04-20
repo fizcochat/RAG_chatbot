@@ -4,7 +4,7 @@ from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
 from langchain.schema import HumanMessage, AIMessage
 import streamlit as st
-import logging
+from monitor.db_logger import log_event
 
 # Load the environment variables from the .env file
 def initialize_services(openai_api_key, pinecone_api_key):
@@ -92,9 +92,13 @@ def find_match(query, k=2):
         # Perform similarity search
         docs = vectorstore.similarity_search(query, k=k)
         
-        logging.info(f"RAG | Query: {query} | Retrieved Chunks: {len(docs)}")
         chunk_preview = [doc.page_content[:60].replace("\n", " ") for doc in docs]
-        logging.info(f"RAG | Chunks Preview: {chunk_preview}")
+        log_event("rag_success", {
+            "query": query,
+            "retrieved_chunks": len(docs),
+            "chunks_preview": chunk_preview
+        })
+
         
         # Extract and clean the content
         contents = []
