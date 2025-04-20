@@ -1,10 +1,12 @@
 import os
+import hashlib
 from dotenv import load_dotenv
 import openai
 from pinecone import Pinecone
 import re
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import argparse
 
 # Load environment variables
 load_dotenv()
@@ -55,6 +57,30 @@ def process_pdf(file_path):
     texts = [str(doc) for doc in documents]
     return texts
 
+# Generate a hash for a file based on its content
+def generate_file_hash(file_path):
+    """Generate a hash for a file based on its content."""
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as f:
+        buf = f.read()
+        hasher.update(buf)
+    return hasher.hexdigest()
+
+# Check if document exists in index
+def document_exists_in_index(index, file_path):
+    """Check if a document with the same path and content hash exists in the index."""
+    try:
+        # We'll use the first chunk ID to check if the document exists
+        base_id = f"{file_path}_chunk_0"
+        
+        # Try to fetch the vector by its ID
+        # If it exists, the document has been uploaded before
+        fetched = index.fetch(ids=[base_id])
+        return bool(fetched.vectors)
+    except Exception:
+        # If there's an error or the vector doesn't exist, return False
+        return False
+
 # Create embeddings
 def create_embeddings(texts):
     embeddings_list = []
@@ -65,7 +91,7 @@ def create_embeddings(texts):
     return embeddings_list
 
 # Upload embeddings to Pinecone
-def upsert_embeddings_to_pinecone(index, embeddings, ids, texts, batch_size=100):
+def upsert_embeddings_to_pinecone(index, embeddings, ids, texts, file_hash, batch_size=100):
     for i in range(0, len(embeddings), batch_size):
         batch_embeddings = embeddings[i:i + batch_size]
         batch_ids = ids[i:i + batch_size]
@@ -75,7 +101,9 @@ def upsert_embeddings_to_pinecone(index, embeddings, ids, texts, batch_size=100)
             filename = id.split('_chunk_')[0]
             metadata.append({
                 'text': preprocess_text(text),
-                'source': filename
+                'source': filename,
+                'file_hash': file_hash,  # Add hash for content tracking
+                'chunk_id': id.split('_chunk_')[1] if '_chunk_' in id else '0'
             })
         index.upsert(vectors=[(id, embedding, meta) for id, embedding, meta in zip(batch_ids, batch_embeddings, metadata)])
 
@@ -90,7 +118,7 @@ def get_pdf_files(directories):
     return pdf_files
 
 # Main function
-def upload_documents_to_pinecone():
+def upload_documents_to_pinecone(force_update=False):
     # Ensure index exists before trying to use it
     index = ensure_index_exists()
     
@@ -99,8 +127,21 @@ def upload_documents_to_pinecone():
     
     print(f"Found {len(pdf_files)} PDF files to process")
     
+    uploaded_count = 0
+    skipped_count = 0
+    
     for file_path in pdf_files:
-        print(f"Processing {file_path}...")
+        # Check if document exists
+        if not force_update and document_exists_in_index(index, file_path):
+            print(f"⏩ Skipping {file_path} - already exists in index")
+            skipped_count += 1
+            continue
+            
+        print(f"📄 Processing {file_path}...")
+        
+        # Generate file hash for tracking
+        file_hash = generate_file_hash(file_path)
+        
         texts = process_pdf(file_path)
         print(f"  Created {len(texts)} text chunks")
         
@@ -112,11 +153,16 @@ def upload_documents_to_pinecone():
         
         # Upload to Pinecone
         print("  Uploading to Pinecone...")
-        upsert_embeddings_to_pinecone(index, embeddings, ids, texts)
+        upsert_embeddings_to_pinecone(index, embeddings, ids, texts, file_hash)
         
         print(f"✅ Completed processing {file_path}")
+        uploaded_count += 1
     
-    print("All documents processed and uploaded to Pinecone")
+    print(f"📊 Summary: {uploaded_count} documents uploaded, {skipped_count} documents skipped (already exist)")
 
 if __name__ == "__main__":
-    upload_documents_to_pinecone()
+    parser = argparse.ArgumentParser(description="Upload documents to Pinecone")
+    parser.add_argument("--force", action="store_true", help="Force update all documents even if they exist")
+    args = parser.parse_args()
+    
+    upload_documents_to_pinecone(force_update=args.force)

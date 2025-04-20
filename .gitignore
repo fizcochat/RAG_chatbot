@@ -30,5 +30,17 @@ fast_text/models/*.bin
 argilla_data_49/
 data_documents/
 
-# FastText model files (users will generate these locally)
-fast_text/models/tax_classifier.bin
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Jupyter notebooks (optional, if you want to exclude all notebooks)
+*.ipynb
+
+# Obsolete/unused training scripts
+fast_text/train_model.py
+fast_text/train_with_real_data.py
+fast_text/train_improved_model.py
+
+# Old/obsolete files
+monitor/old_monitor_dashboard.py
