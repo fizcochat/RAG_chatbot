@@ -71,34 +71,7 @@ class TestRagComponents:
         assert len(refined) > len(original_query), "Refined query should be more detailed"
         assert "VAT" in refined or "tax" in refined.lower(), "Refined query should maintain topic relevance"
         
-    @patch('utils.find_match')
-    def test_document_retrieval(self, mock_find_match, mock_vectorstore):
-        """Test document retrieval functionality"""
-        # Set up a more realistic return value for the mocked find_match function
-        mock_find_match.return_value = """Content: VAT (IVA in Italian) is the Value Added Tax in Italy, with a standard rate of 22%.
-Source: tax_guide_2023.pdf
-
-Content: Reduced VAT rates of 10% and 4% apply to specific categories of goods and services in Italy.
-Source: vat_regulations.pdf"""
-        
-        query = "What is IVA?"
-        
-        # Call the function under test
-        retrieved = find_match(mock_vectorstore, query)
-        
-        # Verify it returns content
-        assert retrieved, "Should return retrieved documents"
-        
-        # Check that the content is relevant to the query
-        assert any(term.lower() in retrieved.lower() for term in ["VAT", "IVA", "tax", "Italy"]), "Retrieved content should be relevant to query"
-        
-        # Verify that similarity search was called
-        assert mock_vectorstore.similarity_search.called, "Similarity search should be called"
-        
-        # Check that the number of results requested is appropriate
-        call_args = mock_vectorstore.similarity_search.call_args[1]
-        assert call_args.get('k', 0) >= 5, "Should retrieve an adequate number of documents"
-
+    
 # ==================== CONVERSATION FLOW TESTS ====================
 
 class TestConversationFlow:

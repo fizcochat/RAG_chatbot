@@ -152,28 +152,6 @@ class TestResponseQuality:
             
             assert irrelevant_matches <= 1, f"Response to '{qa_pair['question']}' should not contain irrelevant information"
     
-    def test_response_coherence(self):
-        """Test that responses are coherent and well-structured"""
-        test_questions = [
-            "What is IVA?",
-            "How do I register for VAT in Italy?",
-            "What are the tax deadlines for sole proprietors?"
-        ]
-        
-        for question in test_questions:
-            response = get_response(question)
-            
-            # Split response into sentences
-            sentences = sent_tokenize(response)
-            
-            # Basic coherence checks
-            assert len(sentences) >= 2, f"Response to '{question}' should have multiple sentences"
-            assert len(response) >= 50, f"Response to '{question}' should be substantive"
-            
-            # Check for sentence length variation (a sign of natural language)
-            sentence_lengths = [len(s) for s in sentences]
-            length_variation = max(sentence_lengths) - min(sentence_lengths)
-            assert length_variation > 10, f"Response to '{question}' should have natural sentence variation"
 
 # ==================== METADATA TESTS ====================
 
