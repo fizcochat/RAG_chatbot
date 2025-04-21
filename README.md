@@ -64,6 +64,30 @@ echo YOUR_GITHUB_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-s
 ```
 - Now you can access the chatbot at http://localhost:8501/
 
+## Monitoring and Observability
+
+The project includes a real-time monitoring dashboard using Streamlit and SQLite:
+
+- Tracks answered, irrelevant, and advisor-redirected queries
+- Captures thumbs-up/thumbs-down user feedback
+- Logs response time for performance metrics
+- Displays charts for trends over time and log details
+
+### Run the dashboard locally:
+```bash
+streamlit run main.py "?page=monitor"
+```
+
+## Updating the Knowledge Base
+To add new documents to the chatbot:
+
+1. Place your files in the `data_documents/` folder.
+2. Run the ingestion pipeline:
+
+```bash
+python ingestion/main.py
+```
+
 ## Features
 - Uses OpenAI's LLMs (GPT-3.5, GPT-4, GPT-4o, etc.)
 - Retrieves information from vector databases for accurate responses
