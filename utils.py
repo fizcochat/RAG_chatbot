@@ -44,7 +44,21 @@ def query_refiner(client, conversation, query):
     
     response = client.completions.create(
         model="gpt-3.5-turbo-instruct",
-        prompt=f"Given the following user query and conversation log, formulate a question that would be the most relevant to provide the user with an answer from a knowledge base.\n\nCONVERSATION LOG: \n{shortened_conversation}\n\nQuery: {query}\n\nRefined Query:",
+        prompt=f"""Given the following user query and conversation log, formulate a more detailed and specific question that would help retrieve the most relevant information from a knowledge base about Italian taxation and VAT management.
+
+The refined question should:
+- Be more specific than the original query
+- Include relevant technical terms (e.g., proper tax terminology)
+- Maintain the original intent
+- Be longer and more detailed than the original query
+- Focus exclusively on Italian tax matters and Fiscozen services
+
+CONVERSATION LOG: 
+{shortened_conversation}
+
+Original Query: {query}
+
+Refined Query:""",
         temperature=0.7,
         max_tokens=256,
         top_p=1,
