@@ -11,7 +11,7 @@ from langchain.prompts import (
     ChatPromptTemplate,
     MessagesPlaceholder
 )
-
+from monitor.db_logger import init_db, log_event
 import dotenv
 
 dotenv.load_dotenv()
@@ -80,6 +80,9 @@ if 'requests' not in st.session_state:
 if 'buffer_memory' not in st.session_state:
     st.session_state.buffer_memory = ConversationBufferWindowMemory(k=3, return_messages=True)
 
+if 'pending_feedback' not in st.session_state:
+    st.session_state['pending_feedback'] = None
+
 
 system_msg_template = SystemMessagePromptTemplate.from_template(template="""
                                                                 
@@ -129,13 +132,27 @@ textcontainer = st.container()
 with textcontainer:
     query = st.chat_input("Type here...")
     if query:
+        if st.session_state.get('pending_feedback'):
+            fb = st.session_state.pop('pending_feedback')
+            log_event("feedback", query=fb['query'], response=fb['response'], feedback=fb['feedback'])
+
         with st.spinner("Typing..."):
+            # these are to implement later but I added them now so I dont have to rechange the dashboard later
+            log_event("advisor_request", query=query)
+            log_event("out_of_scope", query=query)
             
             conversation_string = get_conversation_string()
             refined_query = query_refiner(client, conversation_string, query)
             print("\nRefined Query:", refined_query)
             context = find_match(vectorstore, refined_query)
             response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
+            log_event("answered", query=query, response=response)
+            st.session_state['pending_feedback'] = {
+                "query": query,
+                "response": response,
+                "feedback": None
+            }
+
         st.session_state.requests.append(query)
         st.session_state.responses.append(response)
         st.rerun()
@@ -151,6 +168,24 @@ with response_container:
                        is_user=True,
                        avatar_style="no-avatar",
                        key=str(i) + '_user')
+        
+        # Show feedback only after the latest assistant message
+        last_idx = len(st.session_state['responses']) - 1
+        last_response = st.session_state['responses'][last_idx]
+        last_query = st.session_state['requests'][last_idx] if last_idx < len(st.session_state['requests']) else ""
+
+        feedback_key = f"feedback_{last_idx}"
+        feedback = st.radio(
+            "Was this response helpful?",
+            ["👍", "👎"],
+            index=None,
+            key=feedback_key,
+            horizontal=True
+        )
+        if feedback:
+            log_event("feedback", query=last_query, response=last_response, feedback=feedback)
+            st.session_state['pending_feedback'] = None  # Clear feedback
+            
 
 def get_response(user_input: str) -> str:
     if not user_input:
