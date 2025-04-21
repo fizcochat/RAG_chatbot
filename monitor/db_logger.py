@@ -24,7 +24,8 @@ def init_db():
                 query TEXT,
                 response TEXT,
                 feedback TEXT,
-                response_time REAL
+                response_time REAL,
+                api_type TEXT
             )
         ''')
         conn.commit()
@@ -34,7 +35,7 @@ def init_db():
         raise
 
 
-def log_event(event, query=None, response=None, feedback=None, response_time=None):
+def log_event(event, query=None, response=None, feedback=None, response_time=None, api_type=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -43,7 +44,7 @@ def log_event(event, query=None, response=None, feedback=None, response_time=Non
         response_time = float(response_time)
 
     cursor.execute('''
-        INSERT INTO logs (timestamp, event, query, response, feedback, response_time)
+        INSERT INTO logs (timestamp, event, query, response, feedback, response_time, api_type)
         VALUES (?, ?, ?, ?, ?, ?)
     ''', (
         datetime.now().isoformat(),
@@ -51,7 +52,8 @@ def log_event(event, query=None, response=None, feedback=None, response_time=Non
         str(query) if query else None,
         str(response) if response else None,
         str(feedback) if feedback else None,
-        response_time
+        response_time,
+        str(api_type) if api_type else None
     ))
     conn.commit()
     conn.close()
@@ -60,7 +62,7 @@ def log_event(event, query=None, response=None, feedback=None, response_time=Non
 def get_all_logs():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('SELECT id, timestamp, event, query, response, feedback, response_time FROM logs')
+    cursor.execute('SELECT id, timestamp, event, query, response, feedback, response_time, api_type FROM logs')
     rows = cursor.fetchall()
     conn.close()
     return rows
