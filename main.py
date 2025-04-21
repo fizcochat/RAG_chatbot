@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_chat import message
 import os
-from utils import initialize_services, find_match, query_refiner, get_conversation_string
+from utils import initialize_services, find_match, query_refiner, get_conversation_string, fetch_external_knowledge
 from langchain_openai import ChatOpenAI
 from langchain.chains import ConversationChain
 from langchain.chains.conversation.memory import ConversationBufferWindowMemory
@@ -167,6 +167,12 @@ if page == "chat":
                 refined_query = query_refiner(client, conversation_string, query)
                 print("\nRefined Query:", refined_query)
                 context = find_match(vectorstore, refined_query)
+                
+                # Fetch external knowledge based on query content
+                external_knowledge = fetch_external_knowledge(query)
+                if external_knowledge:
+                    context = context + "\n\nAdditional Information:\n" + external_knowledge
+                
                 response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
                 duration = time.time() - start_time
                 log_event("answered", query=query, response=response)
@@ -217,6 +223,12 @@ if page == "chat":
         conversation_string = get_conversation_string()
         refined_query = query_refiner(client, conversation_string, user_input)
         context = find_match(vectorstore, refined_query)
+        
+        # Fetch external knowledge based on query content
+        external_knowledge = fetch_external_knowledge(user_input)
+        if external_knowledge:
+            context = context + "\n\nAdditional Information:\n" + external_knowledge
+            
         response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
         return response
 
@@ -244,7 +256,7 @@ if page == "monitor":
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
     st.subheader("📌 Key Metrics")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         st.metric("✅ Answered", df[df.event == "answered"].shape[0])
@@ -258,6 +270,14 @@ if page == "monitor":
     with col4:
         avg_response_time = df["response_time"].dropna().mean()
         st.metric("⏱️ Avg Time", f"{avg_response_time:.2f} s")
+    with col5:
+        external_api_count = df[df.event == "external_api"].shape[0]
+        locations_count = df[(df.event == "external_api") & (df.response == "locations")].shape[0]
+        professions_count = df[(df.event == "external_api") & (df.response == "professions")].shape[0]
+        tax_regimes_count = df[(df.event == "external_api") & (df.response == "tax_regimes")].shape[0]
+        
+        st.metric("🔌 API Calls", external_api_count)
+        st.metric("📊 API Breakdown", f"L:{locations_count} P:{professions_count} T:{tax_regimes_count}")
 
     st.markdown("---")
     st.subheader("📈 Trends Over Time")
@@ -290,6 +310,18 @@ if page == "monitor":
             ).properties(title="👤 Advisor Requests Over Time").interactive(),
             use_container_width=True
         )
+
+        # External API usage over time
+        if not df[df.event == "external_api"].empty:
+            external_api_over_time = df[df.event == "external_api"].groupby([pd.Grouper(key="timestamp", freq="15min"), "response"]).size().unstack(fill_value=0).reset_index()
+            if not external_api_over_time.empty and external_api_over_time.shape[1] > 1:  # Check if there's data
+                api_melted = external_api_over_time.melt(id_vars="timestamp", var_name="API Type", value_name="Count")
+                st.altair_chart(
+                    alt.Chart(api_melted).mark_line(point=True).encode(
+                        x="timestamp:T", y="Count:Q", color="API Type:N", tooltip=["timestamp:T", "API Type:N", "Count:Q"]
+                    ).properties(title="🔌 External API Usage Over Time").interactive(),
+                    use_container_width=True
+                )
 
         feedback_melted = feedback_over_time.melt(id_vars="timestamp", var_name="Feedback", value_name="Count")
         st.altair_chart(
