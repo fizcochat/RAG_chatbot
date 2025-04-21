@@ -252,7 +252,7 @@ if page == "monitor":
         st.warning("⚠️ No log data found.")
         st.stop()
 
-    df = pd.DataFrame(rows, columns=["id", "timestamp", "event", "query", "response", "feedback", "response_time"])
+    df = pd.DataFrame(rows, columns=["id", "timestamp", "event", "query", "response", "feedback", "response_time", "api_type"])
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
     st.subheader("📌 Key Metrics")
@@ -272,9 +272,9 @@ if page == "monitor":
         st.metric("⏱️ Avg Time", f"{avg_response_time:.2f} s")
     with col5:
         external_api_count = df[df.event == "external_api"].shape[0]
-        locations_count = df[(df.event == "external_api") & (df.response == "locations")].shape[0]
-        professions_count = df[(df.event == "external_api") & (df.response == "professions")].shape[0]
-        tax_regimes_count = df[(df.event == "external_api") & (df.response == "tax_regimes")].shape[0]
+        locations_count = df[(df.event == "external_api") & (df.api_type == "locations")].shape[0]
+        professions_count = df[(df.event == "external_api") & (df.api_type == "professions")].shape[0]
+        tax_regimes_count = df[(df.event == "external_api") & (df.api_type == "tax_regimes")].shape[0]
         
         st.metric("🔌 API Calls", external_api_count)
         st.metric("📊 API Breakdown", f"L:{locations_count} P:{professions_count} T:{tax_regimes_count}")
@@ -313,7 +313,7 @@ if page == "monitor":
 
         # External API usage over time
         if not df[df.event == "external_api"].empty:
-            external_api_over_time = df[df.event == "external_api"].groupby([pd.Grouper(key="timestamp", freq="15min"), "response"]).size().unstack(fill_value=0).reset_index()
+            external_api_over_time = df[df.event == "external_api"].groupby([pd.Grouper(key="timestamp", freq="15min"), "api_type"]).size().unstack(fill_value=0).reset_index()
             if not external_api_over_time.empty and external_api_over_time.shape[1] > 1:  # Check if there's data
                 api_melted = external_api_over_time.melt(id_vars="timestamp", var_name="API Type", value_name="Count")
                 st.altair_chart(
