@@ -65,7 +65,7 @@ def get_all_logs():
     conn.close()
     return rows
 
-def export_logs_to_csv(db_path="monitor/logs/logs.db", csv_path="monitor/logs/logs_export.csv"):
+def export_logs_to_csv(db_path=DB_PATH, csv_path="monitor/logs/logs_export.csv"):
     conn = sqlite3.connect(db_path)
     df = pd.read_sql_query("SELECT * FROM logs", conn)
     df.to_csv(csv_path, index=False)
