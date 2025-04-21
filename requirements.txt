@@ -111,6 +111,7 @@ SQLAlchemy==2.0.32
 stack-data==0.6.3
 streamlit==1.37.1
 streamlit-authenticator==0.3.3
+streamlit-autorefresh==0.0.3
 streamlit-chat==0.1.1
 tenacity==8.5.0
 tiktoken==0.7.0
