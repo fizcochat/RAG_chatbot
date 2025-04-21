@@ -39,8 +39,27 @@ st.markdown("""
 
 st.subheader("Fiscozen")
 # Get API keys from environment variables
+
+# Load environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD")
+
+# Try to load from `.env` for local development
+if not OPENAI_API_KEY or not PINECONE_API_KEY:
+    if os.path.exists(".env"):
+        from dotenv import load_dotenv
+        load_dotenv()
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+        DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD")
+
+# Try loading from Streamlit secrets if still missing
+if not OPENAI_API_KEY or not PINECONE_API_KEY:
+    if "OPENAI_API_KEY" in st.secrets and "PINECONE_API_KEY" in st.secrets:
+        OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+        PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
+        DASHBOARD_PASSWORD = st.secrets.get("DASHBOARD_PASSWORD")
 
 if not OPENAI_API_KEY or not PINECONE_API_KEY:
     st.error("Please set up your API keys in the .env file")
@@ -111,6 +130,7 @@ with textcontainer:
     query = st.chat_input("Type here...")
     if query:
         with st.spinner("Typing..."):
+            
             conversation_string = get_conversation_string()
             refined_query = query_refiner(client, conversation_string, query)
             print("\nRefined Query:", refined_query)
