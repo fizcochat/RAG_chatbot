@@ -45,7 +45,7 @@ def log_event(event, query=None, response=None, feedback=None, response_time=Non
 
     cursor.execute('''
         INSERT INTO logs (timestamp, event, query, response, feedback, response_time, api_type)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', (
         datetime.now().isoformat(),
         str(event),

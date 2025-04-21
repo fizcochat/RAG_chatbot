@@ -256,7 +256,7 @@ if page == "monitor":
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
     st.subheader("📌 Key Metrics")
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.metric("✅ Answered", df[df.event == "answered"].shape[0])
@@ -267,18 +267,20 @@ if page == "monitor":
     with col3:
         st.metric("👍 Positive Feedback", df[df.feedback == "👍"].shape[0])
         st.metric("👎 Negative Feedback", df[df.feedback == "👎"].shape[0])
+
+    col4, col5, col6 = st.columns(3)
     with col4:
-        avg_response_time = df["response_time"].dropna().mean()
-        st.metric("⏱️ Avg Time", f"{avg_response_time:.2f} s")
-    with col5:
         external_api_count = df[df.event == "external_api"].shape[0]
+        st.metric("🔌 API Calls", external_api_count)
+    with col5:    
         locations_count = df[(df.event == "external_api") & (df.api_type == "locations")].shape[0]
         professions_count = df[(df.event == "external_api") & (df.api_type == "professions")].shape[0]
         tax_regimes_count = df[(df.event == "external_api") & (df.api_type == "tax_regimes")].shape[0]
-        
-        st.metric("🔌 API Calls", external_api_count)
         st.metric("📊 API Breakdown", f"L:{locations_count} P:{professions_count} T:{tax_regimes_count}")
-
+    with col6:
+        avg_response_time = df["response_time"].dropna().mean()
+        st.metric("⏱️ Avg Time", f"{avg_response_time:.2f} s")
+    
     st.markdown("---")
     st.subheader("📈 Trends Over Time")
 
