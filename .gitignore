@@ -1,9 +1,16 @@
-.env
+# Virtual environment
 env/
 venv/
 venv-rag/
-__pycache__
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.so
 .pytest_cache/
+
+# Environment variables
+.env
 
 # Docker
 .docker/
@@ -12,3 +19,7 @@ docker-compose.override.yml
 # Keep data_documents folder but ignore its contents
 data_documents/*
 !data_documents/.gitkeep
+
+# Logs (SQLite DB)
+monitor/logs/logs.db
+!monitor/logs/.gitkeep

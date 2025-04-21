@@ -3,6 +3,7 @@ import openai
 from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
 import streamlit as st
+from monitor.db_logger import log_event
 
 from ingestion.config import MODEL, INDEX, PINECONE_ENV
 
@@ -28,6 +29,12 @@ def initialize_services(openai_api_key, pinecone_api_key):
 
 def find_match(vectorstore, query):
     result = vectorstore.similarity_search(query, k=5)
+    
+    # Create a short preview of the chunks for monitoring 
+    retrieved_chunks = [doc.page_content if hasattr(doc, "page_content") else str(doc) for doc in result]
+    chunk_previews = [chunk[:100] + "..." if len(chunk) > 100 else chunk for chunk in retrieved_chunks]
+    log_event("rag_success", query=query, response="\n---\n".join(chunk_previews), feedback=None)
+
     return str(result)
 
 def query_refiner(client, conversation, query):
