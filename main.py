@@ -19,6 +19,7 @@ import time
 from io import StringIO
 from streamlit_autorefresh import st_autorefresh
 import base64
+import threading
 
 
 dotenv.load_dotenv()
@@ -635,17 +636,51 @@ if page == "chat":
     def get_response(user_input: str) -> str:
         if not user_input:
             return "Please enter a valid question."
-        conversation_string = get_conversation_string()
-        refined_query = query_refiner(client, conversation_string, user_input)
-        context = find_match(vectorstore, refined_query)
         
-        # Fetch external knowledge based on query content
-        external_knowledge = fetch_external_knowledge(user_input)
-        if external_knowledge:
-            context = context + "\n\nAdditional Information:\n" + external_knowledge
+        # Create a local conversation object with its own memory if running in a thread
+        # This avoids cross-contamination between threads but preserves UI behavior
+        if threading.current_thread() is not threading.main_thread():
+            # For tests/threads, use a new instance with a clean memory
+            from langchain.chains import ConversationChain
+            from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+            from langchain.prompts import ChatPromptTemplate
             
-        response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
-        return response
+            # Create a new memory instance for this thread
+            thread_memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+            
+            # Use the same prompt template and LLM as the main conversation
+            thread_conversation = ConversationChain(
+                memory=thread_memory, 
+                prompt=prompt_template, 
+                llm=llm, 
+                verbose=True
+            )
+            
+            # Local function to use thread-specific conversation
+            conversation_string = get_conversation_string()
+            refined_query = query_refiner(client, conversation_string, user_input)
+            context = find_match(vectorstore, refined_query)
+            
+            # Fetch external knowledge based on query content
+            external_knowledge = fetch_external_knowledge(user_input)
+            if external_knowledge:
+                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                
+            response = thread_conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+            return response
+        else:
+            # Standard execution path for the main thread (UI)
+            conversation_string = get_conversation_string()
+            refined_query = query_refiner(client, conversation_string, user_input)
+            context = find_match(vectorstore, refined_query)
+            
+            # Fetch external knowledge based on query content
+            external_knowledge = fetch_external_knowledge(user_input)
+            if external_knowledge:
+                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                
+            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+            return response
 
 if page == "monitor":
     # Load dashboard password
