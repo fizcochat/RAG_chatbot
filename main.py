@@ -91,7 +91,7 @@ if page == "chat":
         st.session_state['requests'] = []
 
     if 'buffer_memory' not in st.session_state:
-        st.session_state.buffer_memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+        st.session_state.buffer_memory = ConversationBufferWindowMemory(k=2, return_messages=True)
 
     if 'pending_feedback' not in st.session_state:
         st.session_state['pending_feedback'] = None
