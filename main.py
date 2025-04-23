@@ -1,5 +1,28 @@
 import streamlit as st
-from streamlit_chat import message
+# from streamlit_chat import message  # Comment out the problematic import
+
+# Create a replacement for the message function using Streamlit's built-in components for a messenger-like UI
+def message(text, is_user=False, key=None, avatar_style=None):
+    # Completely ignore avatar_style parameter
+    if is_user:
+        # Right-aligned message for user (with right margin)
+        st.markdown(f"""
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+            <div style="background-color: #0084ff; color: white; border-radius: 18px; padding: 8px 12px; max-width: 70%; margin-right: 10px;">
+                {text}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Left-aligned message for assistant (with left margin)
+        st.markdown(f"""
+        <div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
+            <div style="background-color: #f0f0f0; color: black; border-radius: 18px; padding: 8px 12px; max-width: 70%; margin-left: 10px;">
+                {text}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
 import os
 from utils import initialize_services, find_match, query_refiner, get_conversation_string, fetch_external_knowledge
 from langchain_openai import ChatOpenAI
@@ -105,27 +128,43 @@ st.markdown("""
         padding-right: 1rem !important;
     }
     
-    /* Optimize chat message display */
-    .stChatMessage {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        margin-bottom: 0.5rem !important;
+    /* Persistent Restart Button */
+    .restart-container {
+        position: sticky;
+        top: 0;
+        background-color: white;
+        padding: 10px 0;
+        z-index: 100;
+        border-bottom: 1px solid #f0f0f0;
     }
     
-    /* Fix message ordering - ensure messages appear in sequence */
-    .stChatMessageContent {
-        display: flex !important;
-        flex-direction: column !important;
+    /* Messenger-style chat bubbles */
+    .user-bubble {
+        background-color: #0084ff;
+        color: white;
+        border-radius: 18px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        max-width: 70%;
+        margin-left: auto;
+        margin-right: 10px;
+        text-align: right;
     }
     
-    /* Proper avatar alignment */
-    .stChatMessageAvatar {
-        margin-top: 0.25rem !important;
+    .assistant-bubble {
+        background-color: #f0f0f0;
+        color: black;
+        border-radius: 18px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        max-width: 70%;
+        margin-right: auto;
+        margin-left: 10px;
+        text-align: left;
     }
     
     /* Chat message container */
-    .element-container:has(.stChatMessage) {
+    .element-container {
         margin-bottom: 0.5rem !important;
     }
     
@@ -311,6 +350,21 @@ if page == "chat":
     if 'pending_feedback' not in st.session_state:
         st.session_state['pending_feedback'] = None
     
+    # Add a persistent restart button at the top of the chat
+    with st.container():
+        st.markdown("""
+        <div class="restart-container">
+        </div>
+        """, unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            # Restart button
+            if st.button(TRANSLATIONS[st.session_state['language']]['restart'], use_container_width=True):
+                st.session_state['responses'] = [INITIAL_RESPONSES[st.session_state['language']]]
+                st.session_state['requests'] = []
+                st.session_state.buffer_memory.clear()
+                st.rerun()
+    
     system_msg_template = SystemMessagePromptTemplate.from_template(template="""
                                                                     
     **Never mention that your responses are based on documents, data, or retrieved information. Present all answers as direct and authoritative.** 
@@ -425,13 +479,6 @@ if page == "chat":
                     </ul>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # Compact restart button
-                if st.button(TRANSLATIONS[lang]['restart'], use_container_width=False):
-                    st.session_state['responses'] = [INITIAL_RESPONSES[st.session_state['language']]]
-                    st.session_state['requests'] = []
-                    st.session_state.buffer_memory.clear()
-                    st.rerun()
                 
                 # Compact FAQ section
                 st.markdown(f"<h3 class='faq-section'>{TRANSLATIONS[lang]['faq']}</h3>", unsafe_allow_html=True)
