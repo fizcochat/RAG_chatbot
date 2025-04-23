@@ -2,7 +2,7 @@
 
 
 
-You can view the Azure Board [here](https://dev.azure.com/FiscoChat/FiscoChat_/_backlogs/backlog/).
+You can view the Azure Board [here](https://dev.azure.com/FiscoChat/FiscoChat_/_boards/board/t/FiscoChat_%20Team/Epics).
 
 ![image](https://github.com/user-attachments/assets/578db53b-b786-437f-9e6d-639d6c5b31d4)
 
