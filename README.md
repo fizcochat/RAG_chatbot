@@ -98,7 +98,7 @@ python ingestion/main.py
 - **Missing API Keys**: Ensure your `.env` file is correctly set up.
 - **Dependency Errors**: Run `pip install -r requirements.txt` again to ensure all dependencies are installed.
 - **Streamlit Not Found**: Run `pip install streamlit` inside your virtual environment.
-
+ 
 ## Contributing
 If you'd like to contribute, feel free to open issues or submit pull requests.
 
