@@ -77,6 +77,15 @@ init_db()
 query_params = st.query_params
 page = query_params.get("page", "chat")  # default to chat
 
+def detect_response_intent(response: str) -> str:
+    if "speak with a tax advisor" in response.lower() or "schedule a meeting" in response.lower():
+        return "advisor_request"
+    elif "cannot assist" in response.lower() or "only assist with Italian tax-related topics" in response.lower():
+        return "out_of_scope"
+    else:
+        return "answered"
+
+
 if page == "chat":
     # Initialize services with environment variables
     vectorstore, client = initialize_services(OPENAI_API_KEY, PINECONE_API_KEY)
@@ -120,6 +129,18 @@ if page == "chat":
         - **For tax-specific advice that requires a professional opinion:** Suggest scheduling an appointment with a **Fiscozen Tax Advisor** and provide instructions to do so.
     - **If the user explicitly requests to speak with a human (CS Consultant or Tax Advisor), immediately suggest the appropriate redirection** without attempting to resolve the issue further.
 
+    3. **Keyword Guidelines for Intent Detection:**
+        To ensure monitoring works correctly, always use the following **exact phrases** in the corresponding situations:
+
+        - For queries **outside the scope** of Fiscozen or Italian tax topics, always include this phrase:
+            "I can only assist with Italian tax-related topics and Fiscozen services."
+
+        - When recommending a user to speak with a tax advisor or consultant, always include one of these phrases:
+            "Speak with a tax advisor"
+            "Schedule a meeting"
+
+        These phrases must appear **verbatim** in the final response to support logging and analytics.
+
 **Tone & Interaction Guidelines:**
 - Maintain a **professional, clear, and friendly** tone. 
 - Be **precise and concise** in your responses—users appreciate efficiency.
@@ -159,10 +180,7 @@ if page == "chat":
 
             with st.spinner("Typing..."):
                 start_time = time.time()
-                # these are to implement later but I added them now so I dont have to rechange the dashboard later
-                log_event("advisor_request", query=query)
-                log_event("out_of_scope", query=query)
-                
+
                 conversation_string = get_conversation_string()
                 refined_query = query_refiner(client, conversation_string, query)
                 print("\nRefined Query:", refined_query)
@@ -174,8 +192,10 @@ if page == "chat":
                     context = context + "\n\nAdditional Information:\n" + external_knowledge
                 
                 response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
+                intent = detect_response_intent(response)
+                # Log intent
+                log_event(intent, query=query, response=response)
                 duration = time.time() - start_time
-                log_event("answered", query=query, response=response)
                 log_event("perf", query=query, response_time=duration)
                 st.session_state['pending_feedback'] = {
                     "query": query,
