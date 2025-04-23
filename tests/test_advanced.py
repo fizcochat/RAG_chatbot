@@ -141,7 +141,7 @@ def test_domain_specific_responses(query, expected_keywords):
     """Test responses for various domain-specific queries"""
     response = get_response(query)
     assert any(keyword in response.lower() for keyword in expected_keywords), \
-        f"Response should contain at least one of the expected keywords: {expected_keywords}"
+        f"Response should contain at least one of the expected keywords: {expected_keywords}, Response: {response}"
 
 # ==================== SECURITY AND INJECTION TESTS ====================
 
