@@ -91,7 +91,7 @@ if page == "chat":
         st.session_state['requests'] = []
 
     if 'buffer_memory' not in st.session_state:
-        st.session_state.buffer_memory = ConversationBufferWindowMemory(k=2, return_messages=True)
+        st.session_state.buffer_memory = ConversationBufferWindowMemory(k=1, return_messages=True)
 
     if 'pending_feedback' not in st.session_state:
         st.session_state['pending_feedback'] = None
@@ -168,9 +168,17 @@ if page == "chat":
                 print("\nRefined Query:", refined_query)
                 context = find_match(vectorstore, refined_query)
                 
+                # Limit context size to avoid token limits
+                if len(context) > 3000:
+                    context = context[:3000] + "..."
+                
                 # Fetch external knowledge based on query content
                 external_knowledge = fetch_external_knowledge(query)
                 if external_knowledge:
+                    # Ensure the combined context doesn't get too large
+                    remaining_space = 3500 - len(context)
+                    if remaining_space > 0 and len(external_knowledge) > remaining_space:
+                        external_knowledge = external_knowledge[:remaining_space] + "..."
                     context = context + "\n\nAdditional Information:\n" + external_knowledge
                 
                 response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
@@ -224,9 +232,17 @@ if page == "chat":
         refined_query = query_refiner(client, conversation_string, user_input)
         context = find_match(vectorstore, refined_query)
         
+        # Limit context size to avoid token limits
+        if len(context) > 3000:
+            context = context[:3000] + "..."
+        
         # Fetch external knowledge based on query content
         external_knowledge = fetch_external_knowledge(user_input)
         if external_knowledge:
+            # Ensure the combined context doesn't get too large
+            remaining_space = 3500 - len(context)
+            if remaining_space > 0 and len(external_knowledge) > remaining_space:
+                external_knowledge = external_knowledge[:remaining_space] + "..."
             context = context + "\n\nAdditional Information:\n" + external_knowledge
             
         response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
