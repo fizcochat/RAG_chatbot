@@ -81,8 +81,8 @@ if page == "chat":
     # Initialize services with environment variables
     vectorstore, client = initialize_services(OPENAI_API_KEY, PINECONE_API_KEY)
 
-    # Remove the dropdown and set a fixed model
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
+    # Fiscozen final choice of model
+    llm = ChatOpenAI(model_name="gpt-4", openai_api_key=OPENAI_API_KEY)
 
     if 'responses' not in st.session_state:
         st.session_state['responses'] = ["How can I assist you?"]
