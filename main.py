@@ -41,7 +41,8 @@ import dotenv
 import pandas as pd
 import altair as alt
 from io import StringIO
-from streamlit_autorefresh import st_autorefresh
+# Remove streamlit_autorefresh dependency
+# from streamlit_autorefresh import st_autorefresh
 import base64
 import threading
 
@@ -350,7 +351,7 @@ def get_response(user_input: str) -> str:
         print(f"Calling API at: {api_url}")
         print(f"With payload: message={user_input}, session_id={st.session_state['session_id']}, language={st.session_state['language']}")
         
-        # Make API request
+        # Make API request with increased timeout
         response = requests.post(
             api_url,
             json={
@@ -358,7 +359,7 @@ def get_response(user_input: str) -> str:
                 "session_id": st.session_state['session_id'],
                 "language": st.session_state['language']  # Use the language from session state
             },
-            timeout=30  # Add timeout for API request
+            timeout=60  # Increased timeout from 30 to 60 seconds
         )
         
         print(f"API response status: {response.status_code}")
@@ -797,7 +798,8 @@ if page == "monitor":
     if not st.session_state.get("monitor_authenticated", False):
         st.stop()
 
-    st_autorefresh(interval=5000, limit=None, key="monitor-refresh")
+    # Comment out auto-refresh since we removed the dependency
+    # st_autorefresh(interval=5000, limit=None, key="monitor-refresh")
 
     rows = get_all_logs()
     if not rows:

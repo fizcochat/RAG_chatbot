@@ -2,6 +2,7 @@
 env/
 venv/
 venv-rag/
+streamlit_env/
 
 # Python cache
 __pycache__/
