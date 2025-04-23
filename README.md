@@ -104,3 +104,33 @@ If you'd like to contribute, feel free to open issues or submit pull requests.
 
 ## License
 This project is licensed under [MIT License](LICENSE).
+
+# External API Integration
+
+The chatbot now supports integration with an external tax-specific RAG chatbot API. This API combines FastText relevance checking, document retrieval from Pinecone, and GPT-4 knowledge to provide comprehensive responses.
+
+## Configuration
+
+To use the external API, set the following environment variable in your `.env` file:
+
+```
+API_URL=http://your-api-server:8080
+```
+
+If this environment variable is not set, the system will default to `http://localhost:8080`.
+
+## Features
+
+- Automatically maintains conversation history with session IDs
+- Supports both Italian and English languages
+- Provides health checks for API availability
+- Falls back to local processing if the API is unavailable
+- Integrates seamlessly with the existing UI
+
+## API Endpoints
+
+The API provides the following endpoints:
+
+1. `/api/chat` - Process user messages and return responses
+2. `/api/clear` - Clear conversation history for a session
+3. `/api/health` - Check the health and status of the API

@@ -1,5 +1,7 @@
 import streamlit as st
 # from streamlit_chat import message  # Comment out the problematic import
+import requests
+import time
 
 # Create a replacement for the message function using Streamlit's built-in components for a messenger-like UI
 def message(text, is_user=False, key=None, avatar_style=None):
@@ -38,7 +40,6 @@ from monitor.db_logger import init_db, log_event, get_all_logs, export_logs_to_c
 import dotenv
 import pandas as pd
 import altair as alt
-import time
 from io import StringIO
 from streamlit_autorefresh import st_autorefresh
 import base64
@@ -304,6 +305,8 @@ INITIAL_RESPONSES = {
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD")
+# Add API URL configuration
+API_URL = os.getenv("API_URL", "http://localhost:8080")
 
 # Try to load from `.env` for local development
 if not OPENAI_API_KEY or not PINECONE_API_KEY:
@@ -331,8 +334,118 @@ init_db()
 query_params = st.query_params
 page = query_params.get("page", "chat")  # default to chat
 
+# Define get_response function outside the conditional block so it's accessible throughout the code
+def get_response(user_input: str) -> str:
+    if not user_input:
+        return "Please enter a valid question."
+    
+    # Use external API instead of local processing
+    try:
+        # Create unique session ID if not exists
+        if 'session_id' not in st.session_state:
+            st.session_state['session_id'] = f"user_{int(time.time())}"
+        
+        # Print debug information
+        api_url = f"{API_URL}/api/chat"
+        print(f"Calling API at: {api_url}")
+        print(f"With payload: message={user_input}, session_id={st.session_state['session_id']}, language={st.session_state['language']}")
+        
+        # Make API request
+        response = requests.post(
+            api_url,
+            json={
+                "message": user_input,
+                "session_id": st.session_state['session_id'],
+                "language": st.session_state['language']  # Use the language from session state
+            },
+            timeout=30  # Add timeout for API request
+        )
+        
+        print(f"API response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            # Update session ID if returned
+            if "session_id" in data:
+                st.session_state['session_id'] = data["session_id"]
+            return data["response"]
+        else:
+            print(f"API Error: {response.text}")
+            return f"I'm sorry, I encountered an error processing your request. Status: {response.status_code}, Response: {response.text}"
+    except Exception as e:
+        print(f"Error calling API: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Return error message for debugging
+        return f"Error connecting to API: {str(e)}"
+        
+        # Fallback to original method if API fails
+        if threading.current_thread() is not threading.main_thread():
+            # For tests/threads, use a new instance with a clean memory
+            from langchain.chains import ConversationChain
+            from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+            from langchain.prompts import ChatPromptTemplate
+            
+            # Create a new memory instance for this thread
+            thread_memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+            
+            # Use the same prompt template and LLM as the main conversation
+            thread_conversation = ConversationChain(
+                memory=thread_memory, 
+                prompt=prompt_template, 
+                llm=llm, 
+                verbose=True
+            )
+            
+            # Local function to use thread-specific conversation
+            conversation_string = get_conversation_string()
+            refined_query = query_refiner(client, conversation_string, user_input)
+            context = find_match(vectorstore, refined_query)
+            
+            # Fetch external knowledge based on query content
+            external_knowledge = fetch_external_knowledge(user_input)
+            if external_knowledge:
+                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                
+            response = thread_conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+            return response
+        else:
+            # Standard execution path for the main thread (UI)
+            conversation_string = get_conversation_string()
+            refined_query = query_refiner(client, conversation_string, user_input)
+            context = find_match(vectorstore, refined_query)
+            
+            # Fetch external knowledge based on query content
+            external_knowledge = fetch_external_knowledge(user_input)
+            if external_knowledge:
+                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                
+            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+            return response
+
 if page == "chat":
-    # Initialize services with environment variables
+    # Check API health
+    try:
+        health_url = f"{API_URL}/api/health"
+        print(f"Checking API health at: {health_url}")
+        health_response = requests.get(health_url, timeout=5)
+        print(f"Health check status: {health_response.status_code}")
+        
+        if health_response.status_code == 200:
+            api_health = health_response.json()
+            print(f"Health check response: {api_health}")
+            if api_health.get("status") != "healthy":
+                st.warning(f"⚠️ The chat API service is experiencing some issues. Status: {api_health.get('status')}. Responses might be delayed or limited.")
+        else:
+            st.warning(f"⚠️ Unable to connect to the chat API service. Status: {health_response.status_code}. Using local fallback mode.")
+            print(f"Health check failed with status {health_response.status_code}: {health_response.text}")
+    except Exception as e:
+        print(f"API health check failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        st.warning(f"⚠️ Unable to connect to the chat API service: {str(e)}. Using local fallback mode.")
+
+    # Initialize services with environment variables (keeping for fallback)
     vectorstore, client = initialize_services(OPENAI_API_KEY, PINECONE_API_KEY)
 
     # Remove the dropdown and set a fixed model
@@ -350,6 +463,28 @@ if page == "chat":
     if 'pending_feedback' not in st.session_state:
         st.session_state['pending_feedback'] = None
     
+    # Add a clear conversation function
+    def clear_conversation():
+        # Clear local state
+        st.session_state['responses'] = [INITIAL_RESPONSES[st.session_state['language']]]
+        st.session_state['requests'] = []
+        st.session_state.buffer_memory.clear()
+        
+        # Clear remote conversation if session_id exists
+        if 'session_id' in st.session_state:
+            try:
+                response = requests.post(
+                    f"{API_URL}/api/clear",
+                    json={"session_id": st.session_state['session_id']},
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    print("Remote conversation cleared successfully")
+                else:
+                    print(f"Error clearing remote conversation: {response.text}")
+            except Exception as e:
+                print(f"Error clearing conversation: {str(e)}")
+
     # Add a persistent restart button at the top of the chat
     with st.container():
         st.markdown("""
@@ -360,9 +495,7 @@ if page == "chat":
         with col2:
             # Restart button
             if st.button(TRANSLATIONS[st.session_state['language']]['restart'], use_container_width=True):
-                st.session_state['responses'] = [INITIAL_RESPONSES[st.session_state['language']]]
-                st.session_state['requests'] = []
-                st.session_state.buffer_memory.clear()
+                clear_conversation()
                 st.rerun()
     
     system_msg_template = SystemMessagePromptTemplate.from_template(template="""
@@ -491,17 +624,10 @@ if page == "chat":
                         query = TRANSLATIONS[lang]['faq1']
                         with st.spinner("Thinking..."):
                             start_time = time.time()
-                            # Process the query properly before adding to requests
-                            conversation_string = get_conversation_string()
-                            refined_query = query_refiner(client, conversation_string, query)
-                            context = find_match(vectorstore, refined_query)
                             
-                            # Fetch external knowledge based on query content
-                            external_knowledge = fetch_external_knowledge(query)
-                            if external_knowledge:
-                                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                            # Use the API directly instead of the previous pipeline
+                            response = get_response(query)
                             
-                            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
                             duration = time.time() - start_time
                             log_event("answered", query=query, response=response)
                             log_event("perf", query=query, response_time=duration)
@@ -520,15 +646,10 @@ if page == "chat":
                         query = TRANSLATIONS[lang]['faq3']
                         with st.spinner("Thinking..."):
                             start_time = time.time()
-                            conversation_string = get_conversation_string()
-                            refined_query = query_refiner(client, conversation_string, query)
-                            context = find_match(vectorstore, refined_query)
                             
-                            external_knowledge = fetch_external_knowledge(query)
-                            if external_knowledge:
-                                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                            # Use the API directly instead of the previous pipeline
+                            response = get_response(query)
                             
-                            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
                             duration = time.time() - start_time
                             log_event("answered", query=query, response=response)
                             log_event("perf", query=query, response_time=duration)
@@ -547,15 +668,10 @@ if page == "chat":
                         query = TRANSLATIONS[lang]['faq2']
                         with st.spinner("Thinking..."):
                             start_time = time.time()
-                            conversation_string = get_conversation_string()
-                            refined_query = query_refiner(client, conversation_string, query)
-                            context = find_match(vectorstore, refined_query)
                             
-                            external_knowledge = fetch_external_knowledge(query)
-                            if external_knowledge:
-                                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                            # Use the API directly instead of the previous pipeline
+                            response = get_response(query)
                             
-                            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
                             duration = time.time() - start_time
                             log_event("answered", query=query, response=response)
                             log_event("perf", query=query, response_time=duration)
@@ -573,15 +689,10 @@ if page == "chat":
                         query = TRANSLATIONS[lang]['faq4']
                         with st.spinner("Thinking..."):
                             start_time = time.time()
-                            conversation_string = get_conversation_string()
-                            refined_query = query_refiner(client, conversation_string, query)
-                            context = find_match(vectorstore, refined_query)
                             
-                            external_knowledge = fetch_external_knowledge(query)
-                            if external_knowledge:
-                                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                            # Use the API directly instead of the previous pipeline
+                            response = get_response(query)
                             
-                            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
                             duration = time.time() - start_time
                             log_event("answered", query=query, response=response)
                             log_event("perf", query=query, response_time=duration)
@@ -608,26 +719,19 @@ if page == "chat":
 
             with st.spinner("Typing..."):
                 start_time = time.time()
-                # these are to implement later but I added them now so I dont have to rechange the dashboard later
+                
+                # Log events before calling API
                 log_event("advisor_request", query=query)
                 log_event("out_of_scope", query=query)
                 
-                conversation_string = get_conversation_string()
-                refined_query = query_refiner(client, conversation_string, query)
-                print("\nRefined Query:", refined_query)
-                context = find_match(vectorstore, refined_query)
+                # Use the API directly instead of the existing pipeline
+                response = get_response(query)
                 
-                # Fetch external knowledge based on query content
-                external_knowledge = fetch_external_knowledge(query)
-                if external_knowledge:
-                    context = context + "\n\nAdditional Information:\n" + external_knowledge
-                
-                response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
                 duration = time.time() - start_time
                 log_event("answered", query=query, response=response)
                 log_event("perf", query=query, response_time=duration)
                 
-                # First add the user's query, then the response to maintain correct order
+                # Add the user's query and the response to maintain correct order
                 st.session_state['requests'].append(query)
                 st.session_state['responses'].append(response)
                 
@@ -679,55 +783,6 @@ if page == "chat":
                 if feedback:
                     log_event("feedback", query=last_query, response=last_response, feedback=feedback)
                     st.session_state['pending_feedback'] = None  # Clear feedback
-
-    def get_response(user_input: str) -> str:
-        if not user_input:
-            return "Please enter a valid question."
-        
-        # Create a local conversation object with its own memory if running in a thread
-        # This avoids cross-contamination between threads but preserves UI behavior
-        if threading.current_thread() is not threading.main_thread():
-            # For tests/threads, use a new instance with a clean memory
-            from langchain.chains import ConversationChain
-            from langchain.chains.conversation.memory import ConversationBufferWindowMemory
-            from langchain.prompts import ChatPromptTemplate
-            
-            # Create a new memory instance for this thread
-            thread_memory = ConversationBufferWindowMemory(k=3, return_messages=True)
-            
-            # Use the same prompt template and LLM as the main conversation
-            thread_conversation = ConversationChain(
-                memory=thread_memory, 
-                prompt=prompt_template, 
-                llm=llm, 
-                verbose=True
-            )
-            
-            # Local function to use thread-specific conversation
-            conversation_string = get_conversation_string()
-            refined_query = query_refiner(client, conversation_string, user_input)
-            context = find_match(vectorstore, refined_query)
-            
-            # Fetch external knowledge based on query content
-            external_knowledge = fetch_external_knowledge(user_input)
-            if external_knowledge:
-                context = context + "\n\nAdditional Information:\n" + external_knowledge
-                
-            response = thread_conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
-            return response
-        else:
-            # Standard execution path for the main thread (UI)
-            conversation_string = get_conversation_string()
-            refined_query = query_refiner(client, conversation_string, user_input)
-            context = find_match(vectorstore, refined_query)
-            
-            # Fetch external knowledge based on query content
-            external_knowledge = fetch_external_knowledge(user_input)
-            if external_knowledge:
-                context = context + "\n\nAdditional Information:\n" + external_knowledge
-                
-            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
-            return response
 
 if page == "monitor":
     # Load dashboard password
