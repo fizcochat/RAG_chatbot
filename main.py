@@ -18,32 +18,247 @@ import altair as alt
 import time
 from io import StringIO
 from streamlit_autorefresh import st_autorefresh
+import base64
+import threading
 
 
 dotenv.load_dotenv()
 
+# Language dictionary for translations
+TRANSLATIONS = {
+    "en": {
+        "welcome": "Welcome to Fiscozen's Tax Assistant!",
+        "description": "I'm here to help with your tax questions. I can assist you with:",
+        "iva_regime": "✓ VAT and Italian tax regime",
+        "deductions": "✓ Tax deductions and credits",
+        "income_declaration": "✓ Income tax declarations",
+        "services": "✓ Services offered by Fiscozen",
+        "restart": "↺ Restart",
+        "faq": "Frequently Asked Questions:",
+        "faq1": "How does VAT work for freelancers?",
+        "faq2": "How to manage electronic invoices?",
+        "faq3": "What tax deductions can I claim for children?",
+        "faq4": "What does Fiscozen offer?",
+        "ask_placeholder": "Ask me something about Italian taxation...",
+        "settings": "Settings",
+        "language": "Language / Lingua",
+        "information_title": "Information",
+        "information_text": "This assistant answers questions about taxes, VAT, and fiscal matters in Italy.",
+        "helpful_feedback": "Was this response helpful?"
+    },
+    "it": {
+        "welcome": "Benvenuto nel Tax Assistant di Fiscozen!",
+        "description": "Sono qui per aiutarti con le tue domande fiscali. Posso supportarti su:",
+        "iva_regime": "✓ IVA e regime fiscale italiano",
+        "deductions": "✓ Detrazioni e deduzioni fiscali",
+        "income_declaration": "✓ Dichiarazione dei redditi",
+        "services": "✓ Servizi offerti da Fiscozen",
+        "restart": "↺ Ricomincia",
+        "faq": "Domande Frequenti:",
+        "faq1": "Come funziona l'IVA per i liberi professionisti?",
+        "faq2": "Come gestire le fatture elettroniche?",
+        "faq3": "Quali detrazioni fiscali posso avere per i figli?",
+        "faq4": "Cosa offre Fiscozen?",
+        "ask_placeholder": "Chiedimi qualcosa sul fisco italiano...",
+        "settings": "Settings",
+        "language": "Language / Lingua",
+        "information_title": "Informazioni",
+        "information_text": "Questo assistente risponde a domande su tasse, IVA e questioni fiscali in Italia.",
+        "helpful_feedback": "Questa risposta è stata utile?"
+    }
+}
+
 # Add custom CSS
 st.markdown("""
 <style>
-    .stTextInput > label {
+    /* Sidebar styles */
+    .sidebar .sidebar-content {
+        background-color: #f5f5f5;
+    }
+    .sidebar-logo {
+        margin-bottom: 10px;
+    }
+    .settings-title {
+        margin-top: 10px;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    
+    /* Text colors */
+    .stTextInput > label, .stSpinner > div, .stSubheader, 
+    div.stMarkdown > div > p, .css-1n76uvr {
         color: black;
     }
-    .stSpinner > div {
-        color: black;
+    
+    /* Main layout fixes */
+    .appview-container {
+        overflow-x: hidden;
     }
-    .stSubheader {
-        color: black;
+    
+    /* give the page a bit of bottom padding so the input never overlaps content */
+    .main .block-container {
+        padding-bottom: 4rem !important;
+        max-width: 1000px;
+        margin-top: 0 !important;
+        padding-top: 1rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
-    div.stMarkdown > div > p {
-        color: black;
+    
+    /* Optimize chat message display */
+    .stChatMessage {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        margin-bottom: 0.5rem !important;
     }
-    .css-1n76uvr {
-        color: black;
+    
+    /* Fix message ordering - ensure messages appear in sequence */
+    .stChatMessageContent {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    /* Proper avatar alignment */
+    .stChatMessageAvatar {
+        margin-top: 0.25rem !important;
+    }
+    
+    /* Chat message container */
+    .element-container:has(.stChatMessage) {
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* keep the input fixed at bottom */
+    .stChatInput {
+        position: fixed !important;
+        bottom: 0;
+        width: 100%;
+        z-index: 100;
+        background-color: #fff;
+        padding-bottom: 10px;
+        box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Logo styling */
+    .main-logo {
+        text-align: center;
+        margin: 0 auto;
+        max-width: 100%;
+    }
+    .main-logo img {
+        max-width: 75px;
+        height: auto;
+    }
+    
+    /* Text styling & spacing */
+    .welcome-section {
+        text-align: center;
+        margin-bottom: 2px;
+        line-height: 1.2;
+    }
+    p {
+        margin-bottom: 0.2rem !important;
+        text-align: center;
+        line-height: 1.2;
+    }
+    h2, h3 {
+        margin: 0.1rem 0 !important;
+        text-align: center;
+        line-height: 1.2;
+    }
+    
+    /* Bullet points */
+    .center-content {
+        text-align: center;
+    }
+    .centered-ul {
+        display: inline-block;
+        text-align: left;
+        margin: 0 auto;
+    }
+    ul {
+        margin: 0.2rem 0 !important;
+        padding-left: 1.5rem !important;
+        line-height: 1.1;
+    }
+    
+    /* Button styling */
+    .stButton button {
+        padding: 0.1rem 0.5rem;
+        font-size: 0.8rem;
+        border-radius: 20px !important;
+        border: 1px solid #f0f0f0 !important;
+        background-color: #f8f8f8 !important;
+        color: #333 !important;
+        font-weight: normal !important;
+        box-shadow: none !important;
+        min-height: 0 !important;
+        line-height: 1.2;
+    }
+    .stButton button:hover {
+        background-color: #f0f0f0 !important;
+        border-color: #e0e0e0 !important;
+    }
+    
+    /* Section spacing */
+    .faq-section {
+        text-align: center;
+        margin-top: 2px;
+        margin-bottom: 0;
+    }
+    .restart-button {
+        text-align: center;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* Column adjustments */
+    .css-ocqkz7, .css-1b0udgb {
+        padding: 0 !important;
+    }
+    
+    /* Chat floating input adjustments */
+    .stChatFloatingInputContainer {
+        padding-bottom: 0 !important;
+        bottom: 0 !important;
+    }
+    
+    /* Hide footer */
+    footer {
+        visibility: hidden;
+    }
+    
+    /* Additional spacing fixes */
+    .css-1544g2n {
+        padding: 0 !important;
+    }
+    
+    /* Viewport adjustment */
+    @media screen and (max-height: 700px) {
+        .main-logo img {
+            max-width: 60px;
+        }
+        h2 {
+            font-size: 1.3rem !important;
+        }
+        .css-10trblm {
+            margin: 0;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.subheader("Fiscozen")
+# Initialize language selection
+if 'language' not in st.session_state:
+    st.session_state['language'] = 'it'  # Default to Italian
+
+# Initial responses based on language
+INITIAL_RESPONSES = {
+    "en": "How can I assist you?",
+    "it": "Come posso aiutarti?"
+}
+
 # Get API keys from environment variables
 
 # Load environment variables
@@ -94,7 +309,7 @@ if page == "chat":
     llm = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=OPENAI_API_KEY)
 
     if 'responses' not in st.session_state:
-        st.session_state['responses'] = ["How can I assist you?"]
+        st.session_state['responses'] = [INITIAL_RESPONSES[st.session_state['language']]]
 
     if 'requests' not in st.session_state:
         st.session_state['requests'] = []
@@ -104,8 +319,7 @@ if page == "chat":
 
     if 'pending_feedback' not in st.session_state:
         st.session_state['pending_feedback'] = None
-
-
+    
     system_msg_template = SystemMessagePromptTemplate.from_template(template="""
                                                                     
     **Never mention that your responses are based on documents, data, or retrieved information. Present all answers as direct and authoritative.** 
@@ -154,12 +368,200 @@ if page == "chat":
     prompt_template = ChatPromptTemplate.from_messages([system_msg_template, MessagesPlaceholder(variable_name="history"), human_msg_template])
 
     conversation = ConversationChain(memory=st.session_state.buffer_memory, prompt=prompt_template, llm=llm, verbose=True)
+    
+    # Sidebar for settings
+    with st.sidebar:
+        st.image("images/fiscozen_small.png", width=120, use_column_width=False, clamp=True)
+        st.markdown("<div class='settings-title'>{}</div>".format(TRANSLATIONS[st.session_state['language']]["settings"]), unsafe_allow_html=True)
+        
+        # Language selector
+        st.markdown("<div>{}</div>".format(TRANSLATIONS[st.session_state['language']]["language"]), unsafe_allow_html=True)
+        language_options = {"English / Inglese": "en", "Italiano / Italian": "it"}
+        
+        # Get current language code
+        current_lang = st.session_state['language']
+        # Get the key (display name) for the current language
+        current_lang_key = next((k for k, v in language_options.items() if v == current_lang), "Italiano / Italian")
+        
+        selected_language = st.selectbox(
+            "",
+            options=list(language_options.keys()),
+            index=list(language_options.keys()).index(current_lang_key),
+            label_visibility="collapsed",
+            key="language_selector"
+        )
+        
+        # Only update and rerun if the language actually changed
+        if language_options[selected_language] != st.session_state['language']:
+            st.session_state['language'] = language_options[selected_language]
+            # Update initial response based on new language
+            st.session_state['responses'][0] = INITIAL_RESPONSES[st.session_state['language']]
+            st.rerun()
+        
+        # Information section
+        lang = st.session_state['language']
+        st.subheader(TRANSLATIONS[lang]["information_title"])
+        st.write(TRANSLATIONS[lang]["information_text"])
+        
+    # Check if this is the first load (no messages yet)
+    first_load = len(st.session_state['requests']) == 0
+
+    # Display Fiscozen logo and welcome message if it's the first load
+    if first_load:
+        # Create a very compact container
+        with st.container():
+            # 3-column layout with narrow side columns
+            col1, center_col, col3 = st.columns([0.2, 3, 0.2])
+            with center_col:
+                # Smaller logo for better vertical fit
+                st.markdown("<div class='main-logo'><img src='data:image/jpeg;base64,{}' alt='Fiscozen Logo'></div>".format(
+                    base64.b64encode(open("images/fiscozen_logo.jpeg", "rb").read()).decode()
+                ), unsafe_allow_html=True)
+                
+                lang = st.session_state['language']
+                st.markdown(f"<h2 class='welcome-section'>{TRANSLATIONS[lang]['welcome']}</h2>", unsafe_allow_html=True)
+                st.markdown(f"<p>{TRANSLATIONS[lang]['description']}</p>", unsafe_allow_html=True)
+                
+                # Ultra-compact bullet points
+                st.markdown(f"""
+                <div class="center-content">
+                    <ul class="centered-ul">
+                        <li>{TRANSLATIONS[lang]['iva_regime']}</li>
+                        <li>{TRANSLATIONS[lang]['deductions']}</li>
+                        <li>{TRANSLATIONS[lang]['income_declaration']}</li>
+                        <li>{TRANSLATIONS[lang]['services']}</li>
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Compact restart button
+                if st.button(TRANSLATIONS[lang]['restart'], use_container_width=False):
+                    st.session_state['responses'] = [INITIAL_RESPONSES[st.session_state['language']]]
+                    st.session_state['requests'] = []
+                    st.session_state.buffer_memory.clear()
+                    st.rerun()
+                
+                # Compact FAQ section
+                st.markdown(f"<h3 class='faq-section'>{TRANSLATIONS[lang]['faq']}</h3>", unsafe_allow_html=True)
+            
+            # Compact FAQ buttons
+            with st.container():
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(TRANSLATIONS[lang]['faq1'], key="faq1", use_container_width=True):
+                        query = TRANSLATIONS[lang]['faq1']
+                        with st.spinner("Thinking..."):
+                            start_time = time.time()
+                            # Process the query properly before adding to requests
+                            conversation_string = get_conversation_string()
+                            refined_query = query_refiner(client, conversation_string, query)
+                            context = find_match(vectorstore, refined_query)
+                            
+                            # Fetch external knowledge based on query content
+                            external_knowledge = fetch_external_knowledge(query)
+                            if external_knowledge:
+                                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                            
+                            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
+                            duration = time.time() - start_time
+                            log_event("answered", query=query, response=response)
+                            log_event("perf", query=query, response_time=duration)
+                        
+                        # Add to session state in correct order (user message first, then response)
+                        st.session_state['requests'].append(query)
+                        st.session_state['responses'].append(response)
+                        st.session_state['pending_feedback'] = {
+                            "query": query,
+                            "response": response,
+                            "feedback": None
+                        }
+                        st.rerun()
+                        
+                    if st.button(TRANSLATIONS[lang]['faq3'], key="faq3", use_container_width=True):
+                        query = TRANSLATIONS[lang]['faq3']
+                        with st.spinner("Thinking..."):
+                            start_time = time.time()
+                            conversation_string = get_conversation_string()
+                            refined_query = query_refiner(client, conversation_string, query)
+                            context = find_match(vectorstore, refined_query)
+                            
+                            external_knowledge = fetch_external_knowledge(query)
+                            if external_knowledge:
+                                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                            
+                            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
+                            duration = time.time() - start_time
+                            log_event("answered", query=query, response=response)
+                            log_event("perf", query=query, response_time=duration)
+                        
+                        st.session_state['requests'].append(query)
+                        st.session_state['responses'].append(response)
+                        st.session_state['pending_feedback'] = {
+                            "query": query,
+                            "response": response,
+                            "feedback": None
+                        }
+                        st.rerun()
+                        
+                with col2:
+                    if st.button(TRANSLATIONS[lang]['faq2'], key="faq2", use_container_width=True):
+                        query = TRANSLATIONS[lang]['faq2']
+                        with st.spinner("Thinking..."):
+                            start_time = time.time()
+                            conversation_string = get_conversation_string()
+                            refined_query = query_refiner(client, conversation_string, query)
+                            context = find_match(vectorstore, refined_query)
+                            
+                            external_knowledge = fetch_external_knowledge(query)
+                            if external_knowledge:
+                                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                            
+                            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
+                            duration = time.time() - start_time
+                            log_event("answered", query=query, response=response)
+                            log_event("perf", query=query, response_time=duration)
+                        
+                        st.session_state['requests'].append(query)
+                        st.session_state['responses'].append(response)
+                        st.session_state['pending_feedback'] = {
+                            "query": query,
+                            "response": response,
+                            "feedback": None
+                        }
+                        st.rerun()
+                        
+                    if st.button(TRANSLATIONS[lang]['faq4'], key="faq4", use_container_width=True):
+                        query = TRANSLATIONS[lang]['faq4']
+                        with st.spinner("Thinking..."):
+                            start_time = time.time()
+                            conversation_string = get_conversation_string()
+                            refined_query = query_refiner(client, conversation_string, query)
+                            context = find_match(vectorstore, refined_query)
+                            
+                            external_knowledge = fetch_external_knowledge(query)
+                            if external_knowledge:
+                                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                            
+                            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{query}")
+                            duration = time.time() - start_time
+                            log_event("answered", query=query, response=response)
+                            log_event("perf", query=query, response_time=duration)
+                        
+                        st.session_state['requests'].append(query)
+                        st.session_state['responses'].append(response)
+                        st.session_state['pending_feedback'] = {
+                            "query": query,
+                            "response": response,
+                            "feedback": None
+                        }
+                        st.rerun()
 
     response_container = st.container()
     textcontainer = st.container()
 
     with textcontainer:
-        query = st.chat_input("Type here...")
+        lang = st.session_state['language']
+        query = st.chat_input(TRANSLATIONS[lang]["ask_placeholder"])
         if query:
             if st.session_state.get('pending_feedback'):
                 fb = st.session_state.pop('pending_feedback')
@@ -184,60 +586,108 @@ if page == "chat":
                 log_event(intent, query=query, response=response)
                 duration = time.time() - start_time
                 log_event("perf", query=query, response_time=duration)
+                
+                # First add the user's query, then the response to maintain correct order
+                st.session_state['requests'].append(query)
+                st.session_state['responses'].append(response)
+                
                 st.session_state['pending_feedback'] = {
                     "query": query,
                     "response": response,
                     "feedback": None
                 }
 
-            st.session_state.requests.append(query)
-            st.session_state.responses.append(response)
             st.rerun()
 
     with response_container:
         if st.session_state['responses']:
+            # Render each message pair in the correct order
             for i in range(len(st.session_state['responses'])):
-                message(st.session_state['responses'][i], 
-                    avatar_style="no-avatar",
-                    key=str(i))
-                if i < len(st.session_state['requests']):
-                    message(st.session_state["requests"][i], 
-                        is_user=True,
+                # If index 0, it's the initial greeting
+                if i == 0 and len(st.session_state['requests']) == 0:
+                    message(st.session_state['responses'][i], 
                         avatar_style="no-avatar",
-                        key=str(i) + '_user')
+                        key=f"greeting_{i}")
+                else:
+                    # Only if there's a corresponding request
+                    if i-1 < len(st.session_state['requests']):
+                        # First show user message
+                        message(st.session_state['requests'][i-1], 
+                            is_user=True,
+                            avatar_style="no-avatar",
+                            key=f"user_{i-1}")
+                        
+                        # Then show bot response
+                        message(st.session_state['responses'][i], 
+                            avatar_style="no-avatar",
+                            key=f"bot_{i}")
             
             # Show feedback only after the latest assistant message
-            last_idx = len(st.session_state['responses']) - 1
-            last_response = st.session_state['responses'][last_idx]
-            last_query = st.session_state['requests'][last_idx] if last_idx < len(st.session_state['requests']) else ""
+            if len(st.session_state['responses']) > 0:
+                last_idx = len(st.session_state['responses']) - 1
+                last_response = st.session_state['responses'][last_idx]
+                last_query = st.session_state['requests'][last_idx-1] if last_idx > 0 and last_idx-1 < len(st.session_state['requests']) else ""
 
-            feedback_key = f"feedback_{last_idx}"
-            feedback = st.radio(
-                "Was this response helpful?",
-                ["👍", "👎"],
-                index=None,
-                key=feedback_key,
-                horizontal=True
-            )
-            if feedback:
-                log_event("feedback", query=last_query, response=last_response, feedback=feedback)
-                st.session_state['pending_feedback'] = None  # Clear feedback
-                
+                feedback_key = f"feedback_{last_idx}"
+                feedback = st.radio(
+                    TRANSLATIONS[st.session_state['language']]["helpful_feedback"],
+                    ["👍", "👎"],
+                    index=None,
+                    key=feedback_key,
+                    horizontal=True
+                )
+                if feedback:
+                    log_event("feedback", query=last_query, response=last_response, feedback=feedback)
+                    st.session_state['pending_feedback'] = None  # Clear feedback
 
     def get_response(user_input: str) -> str:
         if not user_input:
             return "Please enter a valid question."
-        conversation_string = get_conversation_string()
-        refined_query = query_refiner(client, conversation_string, user_input)
-        context = find_match(vectorstore, refined_query)
         
-        # Fetch external knowledge based on query content
-        external_knowledge = fetch_external_knowledge(user_input)
-        if external_knowledge:
-            context = context + "\n\nAdditional Information:\n" + external_knowledge
+        # Create a local conversation object with its own memory if running in a thread
+        # This avoids cross-contamination between threads but preserves UI behavior
+        if threading.current_thread() is not threading.main_thread():
+            # For tests/threads, use a new instance with a clean memory
+            from langchain.chains import ConversationChain
+            from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+            from langchain.prompts import ChatPromptTemplate
             
-        response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
-        return response
+            # Create a new memory instance for this thread
+            thread_memory = ConversationBufferWindowMemory(k=3, return_messages=True)
+            
+            # Use the same prompt template and LLM as the main conversation
+            thread_conversation = ConversationChain(
+                memory=thread_memory, 
+                prompt=prompt_template, 
+                llm=llm, 
+                verbose=True
+            )
+            
+            # Local function to use thread-specific conversation
+            conversation_string = get_conversation_string()
+            refined_query = query_refiner(client, conversation_string, user_input)
+            context = find_match(vectorstore, refined_query)
+            
+            # Fetch external knowledge based on query content
+            external_knowledge = fetch_external_knowledge(user_input)
+            if external_knowledge:
+                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                
+            response = thread_conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+            return response
+        else:
+            # Standard execution path for the main thread (UI)
+            conversation_string = get_conversation_string()
+            refined_query = query_refiner(client, conversation_string, user_input)
+            context = find_match(vectorstore, refined_query)
+            
+            # Fetch external knowledge based on query content
+            external_knowledge = fetch_external_knowledge(user_input)
+            if external_knowledge:
+                context = context + "\n\nAdditional Information:\n" + external_knowledge
+                
+            response = conversation.predict(input=f"Context:\n {context} \n\n Query:\n{user_input}")
+            return response
 
 if page == "monitor":
     # Load dashboard password
