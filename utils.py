@@ -61,7 +61,7 @@ Original Query: {query}
 
 Refined Query:""",
         temperature=0.7,
-        max_tokens=256,
+        max_tokens=150,  # Reduced from 256
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0
