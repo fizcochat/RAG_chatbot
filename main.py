@@ -16,9 +16,9 @@ import dotenv
 import pandas as pd
 import altair as alt
 import time
+from fuzzywuzzy import fuzz
 from io import StringIO
 from streamlit_autorefresh import st_autorefresh
-
 
 dotenv.load_dotenv()
 
@@ -77,11 +77,27 @@ init_db()
 query_params = st.query_params
 page = query_params.get("page", "chat")  # default to chat
 
+OUT_OF_SCOPE_PATTERNS = [
+    "cannot assist",
+    "only assist with Italian tax-related topics",
+    "assistance related to tax matters",
+    "for inquiries unrelated",
+    "Italian tax-related",
+]
+THRESHOLD = 80 
+def is_out_of_scope(response):
+    response_lower = response.lower()
+    return any(
+        fuzz.partial_ratio(response_lower, phrase.lower()) >= THRESHOLD
+        for phrase in OUT_OF_SCOPE_PATTERNS
+    )
+
+
 def detect_response_intent(response: str) -> str:
     if "speak with a tax advisor" in response.lower() or "schedule a meeting" in response.lower():
         return "advisor_request"
-    elif "cannot assist" in response.lower() or "only assist with Italian tax-related topics" in response.lower():
-        return "out_of_scope"
+    elif is_out_of_scope(response):
+        return "out_of_scope"   
     else:
         return "answered"
 
