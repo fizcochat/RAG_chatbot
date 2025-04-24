@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing and development
+*.log
+.git
+.github
+.gitignore
+*.ipynb
+test_*.py
+*_test.py
+test/
+tests/
+
+# Large data directories (these can be uploaded separately if needed)
+argilla_data_49/
+data_documents/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Editor configs
+.vscode/
+.idea/
+.DS_Store 

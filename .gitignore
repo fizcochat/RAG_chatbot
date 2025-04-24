@@ -1,0 +1,46 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+
+# Virtual environment
+env/
+venv/
+venv-rag/
+
+# Environment variables
+.env
+
+# Logs (SQLite DB or old log files)
+monitor/logs/logs.db
+!monitor/logs/.gitkeep
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# FastText model files
+fast_text/models/*.bin
+
+# Streamlit-specific
+.streamlit/config.toml
+
+# Private data
+argilla_data_49/
+data_documents/
+
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Jupyter notebooks (optional, if you want to exclude all notebooks)
+*.ipynb
+
+# Obsolete/unused training scripts
+fast_text/train_model.py
+fast_text/train_with_real_data.py
+fast_text/train_improved_model.py
+# Old/obsolete files
+monitor/old_monitor_dashboard.py
+

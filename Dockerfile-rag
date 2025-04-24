@@ -1,0 +1,60 @@
+FROM python:3.11-slim AS base
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Stage for dependency installation
+FROM base AS dependencies
+
+# Copy requirements file first to leverage Docker cache
+COPY requirements.txt deployment-requirements.txt ./
+
+# Install Python dependencies with better error handling and avoid version conflicts
+RUN pip install --no-cache-dir --upgrade pip && \
+    # Install base packages first
+    pip install --no-cache-dir flask flask-cors gunicorn python-dotenv fasttext && \
+    # Install langchain packages with specific compatible versions
+    pip install --no-cache-dir langchain==0.0.350 langchain-core==0.1.0 langchain-openai==0.0.2 && \
+    # Install remaining packages
+    pip install --no-cache-dir pinecone-client openai numpy PyPDF2 tqdm pydantic && \
+    # Install langchain-pinecone last
+    pip install --no-cache-dir langchain-pinecone==0.2.0 && \
+    # Install any remaining requirements
+    pip install --no-cache-dir -r requirements.txt --ignore-installed || echo "Some packages couldn't be installed, continuing anyway"
+
+# Final stage for application
+FROM dependencies AS application
+
+# Copy the rest of the application
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p fast_text/models data_documents argilla_data_49 monitor/logs
+
+# Set environment variables
+ENV PORT=8080
+EXPOSE 8080
+
+# Explicitly set the Python path to include the current directory
+ENV PYTHONPATH="${PYTHONPATH}:/app"
+
+# Create a startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting application..."\n\
+echo "Current directory: $(pwd)"\n\
+echo "Listing files: $(ls -la)"\n\
+echo "Running gunicorn with timeout 0 on port $PORT"\n\
+exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app\n\
+' > /app/startup.sh
+
+# Make the startup script executable
+RUN chmod +x /app/startup.sh
+
+# Use the startup script to run the application
+CMD ["/app/startup.sh"] 

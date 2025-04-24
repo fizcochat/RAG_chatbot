@@ -1,0 +1,44 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Environment and virtual environments
+.env
+.env.example
+venv/
+env/
+ENV/
+
+# System files
+.DS_Store
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Build and distribution
+build/
+dist/
+*.egg-info/
+
+# Data and logs that should be mounted as volumes
+data_documents/*
+!data_documents/.gitkeep
+monitor/logs/*
+!monitor/logs/.gitkeep
+
+# Development files
+*.md
+!README.md
+LICENSE
+tests/
+pytest.ini
+.streamlit/
+.devcontainer/
+
+# Temporary files
+*.swp
+*.swo
+*~ 
