@@ -159,16 +159,18 @@ class TestPerformance:
             "Who needs to register for VAT?"
         ]
         
-        # Create and start threads
+        # Create and start threads with delays to avoid rate limiting
         threads = []
         for idx, query in enumerate(queries):
             thread = threading.Thread(target=query_task, args=(query, idx))
             threads.append(thread)
             thread.start()
+            # Add a small delay between thread starts to avoid OpenAI rate limits
+            time.sleep(1.5)
         
-        # Wait for all threads to complete
+        # Wait for all threads to complete with increased timeout
         for thread in threads:
-            thread.join(timeout=20)  # 20 second timeout
+            thread.join(timeout=60)  # Increased timeout to 60 seconds
         
         # Assert results
         assert len(results) == len(queries), f"Expected {len(queries)} results, got {len(results)}"
